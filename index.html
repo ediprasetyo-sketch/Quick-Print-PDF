@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Revo Print Shop — PDF Print Utility</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand-area">
+      <div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6.5 8V4.5h11V8M6 18h12v-5H6v5Zm-2-9h16a2 2 0 0 1 2 2v5h-4v-3H6v3H2v-5a2 2 0 0 1 2-2Zm14 2.5h.01"/></svg></div>
+      <div class="brand-copy"><div class="brand-name">Revo Print Shop</div><div class="brand-subtitle" data-i18n="appPrint">Aplikasi Cetak</div></div>
+      <div id="fileChip" class="file-chip hidden"><svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v5h5"/></svg><span id="fileName">Basic.pdf</span></div>
+    </div>
+    <div class="toolbar">
+      <div class="language"><button id="langId" class="language-btn active">ID</button><button id="langEn" class="language-btn">EN</button></div>
+      <button id="qrBtn" class="toolbar-btn light"><svg viewBox="0 0 24 24"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h3v3h-3zM19 17h1v3h-3v-1M14 19h2M19 14h1"/></svg><span data-i18n="qrUpload">QR Upload</span></button><button id="openBtn" class="toolbar-btn light"><svg viewBox="0 0 24 24"><path d="M3.5 7.5h6l2 2H20.5v9H3.5zM3.5 7.5v-2h5l2 2"/></svg><span data-i18n="openPdf">Buka PDF</span></button>
+      <button id="closeBtn" class="close-file" disabled><svg viewBox="0 0 24 24"><path d="m7 7 10 10M17 7 7 17"/></svg><span data-i18n="close">Tutup</span></button>
+      <button id="printBtnTop" class="toolbar-btn primary" disabled><svg viewBox="0 0 24 24"><path d="M7 9V4h10v5M6 18H4.5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h15a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H18M7 15h10v6H7z"/></svg><span data-i18n="directPrint">Cetak langsung</span></button>
+    </div>
+  </header>
+
+  <main id="emptyState" class="empty-state">
+    <div id="dropzone" class="dropzone">
+      <div class="upload-icon"><svg viewBox="0 0 24 24"><path d="M12 16V5m0 0L8 9m4-4 4 4M5 14v3.5A2.5 2.5 0 0 0 7.5 20h9a2.5 2.5 0 0 0 2.5-2.5V14"/></svg></div>
+      <h1 data-i18n="openStart">Buka PDF untuk memulai</h1>
+      <p><span data-i18n="dropHelp">Seret &amp; lepas PDF di sini, atau pilih dari berkas Anda. Semua tetap<br>di perangkat Anda.</span></p>
+      <button id="chooseBtn" class="choose-btn"><svg viewBox="0 0 24 24"><path d="M3.5 7.5h6l2 2H20.5v9H3.5zM3.5 7.5v-2h5l2 2"/></svg><span data-i18n="choosePdf">Pilih PDF</span></button>
+      <span data-i18n="orDrop">atau lepas PDF di sini</span>
+    </div>
+  </main>
+
+  <main id="workspace" class="workspace hidden">
+    <section class="viewer-panel">
+      <div class="viewer-toolbar">
+        <div class="pager">
+          <button id="prevPage" class="square-btn" aria-label="Halaman sebelumnya"><svg viewBox="0 0 24 24"><path d="m14.5 6-6 6 6 6"/></svg></button>
+          <span data-i18n="page">Halaman</span><input id="pageInput" value="1" type="number" min="1"/><span class="page-of-label" data-i18n="of">dari</span><b id="pageTotal">0</b><span id="pageCountText" class="page-count-text">1 dari 0</span>
+          <button id="nextPage" class="square-btn" aria-label="Halaman berikutnya"><svg viewBox="0 0 24 24"><path d="m9.5 6 6 6-6 6"/></svg></button>
+        </div>
+        <div class="viewer-actions">
+          <button id="zoomOut" class="tool-btn" title="Perkecil"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 5 5M8 11h6"/></svg></button>
+          <span id="zoomLabel" class="zoom-label">136%</span>
+          <button id="zoomIn" class="tool-btn" title="Perbesar"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 5 5M8 11h6M11 8v6"/></svg></button>
+          <button id="fitBtn" class="tool-btn" title="Muat ke layar"><svg viewBox="0 0 24 24"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M21 16v5h-5"/><path d="M3 8l5-5M16 3l5 5M3 16l5 5M16 21l5-5"/></svg></button>
+          <button id="actualBtn" class="actual-btn" title="Ukuran aktual">100%</button>
+          <button id="fullscreenBtn" class="tool-btn" title="Layar penuh"><svg viewBox="0 0 24 24"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M21 16v5h-5"/></svg></button>
+        </div>
+      </div>
+      <div id="pdfViewport" class="pdf-viewport"><div id="pdfCanvasWrap" class="pdf-canvas-wrap"></div></div>
+      <div class="viewer-footer"><span id="statusText" data-i18n="ready">Siap</span><span id="pageStatus">Halaman 1/0</span><span id="zoomStatus">100%</span></div>
+      <div class="pdf-info-bar">
+        <div class="pdf-info-title"><span class="info-file-icon">PDF</span><div><b id="fileNameInfo">-</b><small id="fileSizeInfo">-</small></div></div>
+        <div class="pdf-info-grid">
+          <div><span data-i18n="originalSize">Ukuran asli</span><b id="originalPaperInfo">-</b></div>
+          <div><span data-i18n="dimensions">Dimensi</span><b id="dimensionsInfo">-</b></div>
+          <div><span data-i18n="orientationInfo">Orientasi</span><b id="orientationInfo">-</b></div>
+          <div><span data-i18n="pageInfo">Halaman</span><b id="pageInfoDynamic">1 dari 0</b></div>
+        </div>
+      </div>
+    </section>
+
+    <aside class="settings-panel">
+      <div class="settings-scroll">
+        <section class="printer-card">
+          <div class="section-title"><span class="label-icon"><svg viewBox="0 0 24 24"><path d="M7 9V4h10v5M6 18H4.5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h15a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H18M7 15h10v6H7z"/></svg><span data-i18n="printer">PRINTER</span></span><span id="printerStatus" class="printer-status">○ QZ Tray</span></div>
+          <select id="printerSelect" class="field-select"><option value="">Memuat printer…</option></select>
+          <div class="printer-actions"><button id="refreshPrinters" class="outline-btn"><svg viewBox="0 0 24 24"><path d="M20 11a8 8 0 0 0-14.5-4L4 9M4 5v4h4M4 13a8 8 0 0 0 14.5 4L20 15m0 4v-4h-4"/></svg><span data-i18n="refreshPrinter">Segarkan printer</span></button><button id="disconnectBtn" class="link-btn"><span data-i18n="disconnect">Putuskan</span></button></div>
+        </section>
+
+        <section class="settings-section">
+          <div class="section-heading"><span data-i18n="printSettings">Pengaturan cetak</span> <svg viewBox="0 0 24 24"><path d="M7 9V4h10v5M6 18H4.5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h15a2 2 0 0 1 2 2v5H18M7 15h10v6H7z"/></svg></div>
+
+          <div class="field-grid">
+            <div class="field"><label data-i18n="copiesLabel">JUMLAH SALINAN</label><div class="stepper"><button id="minusCopies">−</button><input id="copies" value="1" type="number" min="1" max="999"><button id="plusCopies">+</button></div></div>
+            <div class="field"><label data-i18n="paperLabel">UKURAN KERTAS</label><select id="paper" class="field-select"><option>A4</option><option>A5</option><option>A3</option><option>Letter</option><option>Legal</option><option>Tabloid</option><option>Folio</option></select></div>
+          </div>
+
+          <label class="field-label" data-i18n="orientationLabel">ORIENTASI</label>
+          <div class="choice-row"><button class="choice active" data-orientation="portrait"><svg viewBox="0 0 24 24"><rect x="7.5" y="4" width="9" height="16" rx="1"/></svg><span data-i18n="portrait">Potret</span></button><button class="choice" data-orientation="landscape"><svg viewBox="0 0 24 24"><rect x="4" y="7.5" width="16" height="9" rx="1"/></svg><span data-i18n="landscape">Lanskap</span></button></div>
+
+          <label class="field-label" data-i18n="colorLabel">WARNA</label>
+          <div class="choice-row"><button class="choice active" data-color="color"><span class="radio-dot"></span><span class="color-dot"></span><span data-i18n="color">Berwarna</span></button><button class="choice" data-color="bw"><span class="radio-dot"></span><span class="gray-dot"></span><span data-i18n="bw">Hitam putih</span></button></div>
+
+          <label class="field-label" data-i18n="pagesLabel">HALAMAN</label>
+          <div class="choice-row"><button id="allPages" class="choice active" data-i18n="all">Semua</button><button id="specificPages" class="choice" data-i18n="specific">Khusus</button></div>
+          <div class="page-modes"><button id="allPageMode" class="pill active" data-i18n="allPages">Semua halaman</button><button id="oddPages" class="pill" data-i18n="odd">Ganjil saja</button><button id="evenPages" class="pill" data-i18n="even">Genap saja</button></div>
+          <input id="rangeInput" class="field-input hidden" placeholder="Contoh: 1-3, 5, 8-10" />
+
+          <div class="field-grid">
+            <div class="field"><label data-i18n="scaleLabel">SKALA</label><select id="scale" class="field-select"><option value="actual" data-i18n-opt="actual">Ukuran asli</option><option value="fit" data-i18n-opt="fit">Fit ke kertas</option><option value="custom" data-i18n-opt="custom">Kustom</option><option value="100">100%</option><option value="90">90%</option><option value="80">80%</option></select><div id="customScaleWrap" class="custom-scale-wrap hidden"><input id="customScale" class="field-input custom-scale-input" type="number" min="10" max="500" step="1" value="100" aria-label="Custom scale"><span class="percent-suffix">%</span></div></div>
+            <div class="field"><label data-i18n="marginLabel">MARGIN</label><select id="margin" class="field-select"><option value="normal" data-i18n-opt="normal">Normal</option><option value="none" data-i18n-opt="none">Tanpa margin</option></select></div>
+          </div>
+
+          <label class="field-label advanced-label" data-i18n="advancedLabel">LANJUTAN (CETAK LANGSUNG)</label>
+          <div class="field-grid">
+            <div class="field"><span class="sub-label" data-i18n="duplexLabel">Bolak-balik (duplex)</span><select id="duplex" class="field-select"><option value="simplex" data-i18n-opt="simplex">Satu sisi</option><option value="longEdge" data-i18n-opt="longEdge">Balik tepi panjang</option><option value="shortEdge" data-i18n-opt="shortEdge">Balik tepi pendek</option></select></div>
+            <div class="field"><span class="sub-label" data-i18n="trayLabel">Baki kertas</span><select id="tray" class="field-select"><option value="default" data-i18n-opt="defaultPrinter">Default printer</option></select></div>
+          </div>
+          <p class="info-note"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 10v6M12 7.2v.1"/></svg><span data-i18n="infoNote">Duplex &amp; baki berlaku untuk cetak langsung (QZ Tray). Pada mode browser, atur di dialog cetak.</span></p>
+        </section>
+
+        <section class="job-card">
+          <div class="job-title"><svg viewBox="0 0 24 24"><path d="M7 4h10v5H7zM5 9h14a2 2 0 0 1 2 2v5h-4v-3H7v3H3v-5a2 2 0 0 1 2-2ZM7 17h10v3H7z"/></svg><span data-i18n="printJob">TUGAS CETAK</span></div>
+          <div class="job-line"><b id="jobSummary">13 × 1</b><span>•</span><b id="jobPages">13</b><span id="jobPaper">A4 · Potret</span></div>
+          <small><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 10v6M12 7.2v.1"/></svg><span data-i18n="jobNote">Anda akan memilih printer di dialog cetak browser.</span></small>
+        </section>
+        <button id="printBtn" class="print-big" disabled><svg viewBox="0 0 24 24"><path d="M7 9V4h10v5M6 18H4.5a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h15a2 2 0 0 1 2 2v5H18M7 15h10v6H7z"/></svg><span data-i18n="printPdf">Cetak PDF</span></button>
+      </div>
+    </aside>
+  </main>
+
+  <div id="qrModal" class="modal hidden"><div class="modal-backdrop" id="qrBackdrop"></div><div class="qr-dialog"><button id="qrClose" class="modal-close">×</button><div class="qr-dialog-title" data-i18n="qrTitle">Upload PDF via QR Internet</div><p data-i18n="qrHelp">Scan QR ini dari HP menggunakan Wi-Fi atau jaringan seluler. Tidak perlu domain. PDF dikirim melalui internet ke aplikasi Revo Print Shop.</p><div class="qr-box"><img id="qrImage" alt="QR upload PDF"><div id="qrUrl" class="qr-url"></div></div><div id="qrStatus" class="qr-status" data-i18n="qrWaiting">Menunggu file PDF dari HP…</div><div id="qrNetwork" class="qr-network"></div><button id="qrCopy" class="outline-btn" type="button">Salin link</button><button id="qrStop" class="outline-btn modal-stop" data-i18n="qrStop">Tutup QR Upload</button></div></div><div id="toast" class="toast"></div>
+  <script src="node_modules/qz-tray/qz-tray.js"></script>
+<script type="module" src="renderer.js"></script>
+</body>
+</html>

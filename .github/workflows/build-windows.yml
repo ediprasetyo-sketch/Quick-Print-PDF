@@ -1,0 +1,42 @@
+name: Build Windows
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Download and verify Cloudflared
+        shell: cmd
+        run: call setup-internet-qr.bat
+
+      - name: Build NSIS installer and portable EXE
+        run: npm run dist
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: revo-print-shop-windows
+          path: release/*
+          if-no-files-found: error
+          retention-days: 14

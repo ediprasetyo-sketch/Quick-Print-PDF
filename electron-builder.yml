@@ -1,0 +1,41 @@
+appId: com.revoprintshop.app
+productName: Revo Print Shop
+artifactName: Revo-Print-Shop-${version}-${arch}.${ext}
+compression: normal
+asar: true
+files:
+  - main.js
+  - preload.js
+  - index.html
+  - styles.css
+  - renderer.js
+  - print.html
+  - print.js
+  - build/icon.ico
+  - node_modules/pdfjs-dist/**/*
+  - node_modules/qz-tray/**/*
+directories:
+  output: release
+  buildResources: build
+extraResources:
+  - from: cloudflared.exe
+    to: cloudflared.exe
+win:
+  icon: build/icon.ico
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+nsis:
+  oneClick: false
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  installerHeaderIcon: build/icon.ico
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+portable:
+  artifactName: Revo-Print-Shop-${version}-${arch}-portable.${ext}

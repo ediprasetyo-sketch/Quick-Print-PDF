@@ -1,0 +1,14 @@
+node_modules/
+release/
+dist/
+cloudflared.exe
+*.exe
+*.msi
+*.zip
+*.log
+.env
+*.pem
+*.key
+qz-identity/
+.DS_Store
+Thumbs.db
