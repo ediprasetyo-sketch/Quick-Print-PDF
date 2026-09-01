@@ -19,5 +19,8 @@ contextBridge.exposeInMainWorld('revo', {
   signalPrintReady: (ranges) => ipcRenderer.send('print-ready', { pageRanges: ranges }),
   startQrUpload: () => ipcRenderer.invoke('start-qr-upload'),
   stopQrUpload: () => ipcRenderer.invoke('stop-qr-upload'),
+  // QR_QUEUE_V4_1_PRELOAD
+  qrQueueJobs: (status = 'uploaded') => ipcRenderer.invoke('qr-queue-jobs', status),
+  qrQueueDownload: (jobId) => ipcRenderer.invoke('qr-queue-download', jobId),
   onQrPdfReceived: (callback) => ipcRenderer.on('qr-pdf-received', (_event, file) => callback(file))
 });

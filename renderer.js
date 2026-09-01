@@ -275,3 +275,70 @@ applyLanguage('id');
 // enable "Remember this decision" once. QZ will then reconnect automatically.
 setTimeout(autoConnectQz, 250);
 });
+
+
+/* QR_QUEUE_V4_1_RENDERER */
+(() => {
+  const style = document.createElement('style');
+  style.textContent = `
+    #qrQueuePanel{position:fixed;right:18px;top:18px;z-index:9999;width:360px;background:#fff;border:1px solid #dbe4e3;border-radius:14px;box-shadow:0 12px 36px #163b3518;padding:14px;font-family:Inter,Arial,sans-serif}
+    #qrQueuePanel .qq-head{display:flex;justify-content:space-between;align-items:center;font-weight:800;color:#203335;margin-bottom:8px}
+    #qrQueuePanel .qq-status{font-size:11px;color:#647477;margin-bottom:8px}
+    #qrQueuePanel .qq-item{display:flex;gap:8px;align-items:center;border-top:1px solid #edf1f1;padding:9px 0}
+    #qrQueuePanel .qq-name{flex:1;min-width:0;font-size:12px;color:#203335;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    #qrQueuePanel button{border:0;border-radius:8px;padding:7px 10px;background:#1f6f62;color:#fff;font-weight:700;cursor:pointer}
+    #qrQueuePanel button:disabled{opacity:.55;cursor:wait}
+    #qrQueuePanel .qq-empty{font-size:12px;color:#7b898a;padding:8px 0}
+  `;
+  document.head.appendChild(style);
+
+  const panel = document.createElement('section');
+  panel.id = 'qrQueuePanel';
+  panel.innerHTML = '<div class="qq-head"><span>QR Queue</span><span>V4.0</span></div><div id="qqStatus" class="qq-status">Menghubungkan…</div><div id="qqList"></div>';
+  document.body.appendChild(panel);
+
+  const statusEl = panel.querySelector('#qqStatus');
+  const listEl = panel.querySelector('#qqList');
+
+  async function refreshQrQueue() {
+    try {
+      const jobs = await window.revo.qrQueueJobs('uploaded');
+      statusEl.textContent = `${jobs.length} job tersedia · diperbarui ${new Date().toLocaleTimeString()}`;
+      if (!jobs.length) {
+        listEl.innerHTML = '<div class="qq-empty">Belum ada job upload.</div>';
+        return;
+      }
+      listEl.replaceChildren();
+      for (const job of jobs.slice(0, 8)) {
+        const row = document.createElement('div');
+        row.className = 'qq-item';
+        const name = document.createElement('div');
+        name.className = 'qq-name';
+        name.textContent = `${job.jobId} · ${job.filename || job.fileName || 'PDF'}`;
+        const btn = document.createElement('button');
+        btn.textContent = 'Buka';
+        btn.onclick = async () => {
+          btn.disabled = true;
+          btn.textContent = '…';
+          try {
+            const file = await window.revo.qrQueueDownload(job.jobId);
+            await loadPdf(file);
+            toast(`QR Job ${job.jobId} dibuka.`);
+          } catch (err) {
+            toast(`QR Queue: ${err?.message || err}`, true);
+          } finally {
+            btn.disabled = false;
+            btn.textContent = 'Buka';
+          }
+        };
+        row.append(name, btn);
+        listEl.appendChild(row);
+      }
+    } catch (err) {
+      statusEl.textContent = `QR Queue gagal: ${err?.message || err}`;
+    }
+  }
+
+  setTimeout(refreshQrQueue, 1200);
+  setInterval(refreshQrQueue, 5000);
+})();

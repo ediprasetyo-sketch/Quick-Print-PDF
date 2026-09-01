@@ -529,3 +529,13 @@ ipcMain.handle('close-file', async () => {
 ipcMain.handle('show-in-folder', async () => {
   if (currentFile) shell.showItemInFolder(currentFile);
 });
+
+
+// QR_QUEUE_V4_1_INTEGRATION
+const { fetchJobs: fetchQrQueueJobs, downloadJob: downloadQrQueueJob } = require('./qr-queue-client');
+ipcMain.handle('qr-queue-jobs', async (_event, status) => fetchQrQueueJobs(status || 'uploaded'));
+ipcMain.handle('qr-queue-download', async (_event, jobId) => {
+  const file = await downloadQrQueueJob(jobId);
+  currentFile = file.path;
+  return { path: file.path, name: `${jobId}.pdf`, url: fileUrl(file.path), size: file.size, jobId };
+});
