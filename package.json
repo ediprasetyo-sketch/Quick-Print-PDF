@@ -1,7 +1,7 @@
 {
   "name": "revo-print-shop",
-  "version": "1.0.17",
-  "description": "Revo Print Shop V5.14.2 — QZ Tray self-signed local trust + QR Queue integration.",
+  "version": "1.0.18",
+  "description": "Revo Print Shop V5.14.3 — Simplify QR Upload UI + QZ Tray self-signed local trust + QR Queue integration.",
   "main": "bootstrap.js",
   "author": "Revo Print Shop",
   "license": "MIT",
