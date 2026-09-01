@@ -1,4 +1,4 @@
-name: Wire QR Queue module
+name: Cleanup temporary QR Queue wiring
 
 on:
   push:
@@ -8,38 +8,24 @@ permissions:
   contents: write
 
 jobs:
-  wire:
+  cleanup:
     if: ${{ github.event.head_commit.author.username != 'github-actions[bot]' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Wire remote-queue.js into main.js
+      - uses: actions/checkout@v4
+      - name: Restore clean main entrypoint
         shell: python
         run: |
           from pathlib import Path
-
           main = Path('main.js')
           text = main.read_text(encoding='utf-8')
-          marker = "require('./remote-queue');"
-          if marker not in text:
-              anchor = "const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');"
-              if anchor not in text:
-                  raise SystemExit('Electron import anchor not found; main.js was not changed.')
-              text = text.replace(anchor, anchor + "\nrequire('./remote-queue');", 1)
-              main.write_text(text, encoding='utf-8')
-          else:
-              print('QR Queue module already wired.')
-
-      - name: Commit wiring
+          text = text.replace("require('./remote-queue');\n", '', 1)
+          main.write_text(text, encoding='utf-8')
+      - name: Remove temporary module and workflow
         run: |
+          rm -f remote-queue.js .github/workflows/apply-qr-queue.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add main.js
-          if git diff --cached --quiet; then
-            echo "No changes to commit."
-          else
-            git commit -m "wire QR Queue module"
-            git push
-          fi
+          git add main.js remote-queue.js .github/workflows/apply-qr-queue.yml
+          git commit -m "revert temporary QR Queue wiring" || exit 0
+          git push
