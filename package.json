@@ -1,8 +1,8 @@
 {
   "name": "revo-print-shop",
-  "version": "1.0.16",
-  "description": "Revo Print Shop V5.14.2 — QZ Tray self-signed local trust + provisioning fix.",
-  "main": "main.js",
+  "version": "1.0.17",
+  "description": "Revo Print Shop V5.14.2 — QZ Tray self-signed local trust + QR Queue integration.",
+  "main": "bootstrap.js",
   "author": "Revo Print Shop",
   "license": "MIT",
   "scripts": {
