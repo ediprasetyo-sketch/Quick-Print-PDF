@@ -1,6 +1,26 @@
 const { app, ipcMain } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
+const Module = require('node:module');
+
+// V5.14.3: keep the QR upload page UI in its own module so future UI changes
+// do not require editing the large main.js file. The loader swaps only the
+// uploadPageHtml() implementation when main.js is compiled.
+const mainJsPath = path.resolve(__dirname, 'main.js');
+const originalJsLoader = Module._extensions['.js'];
+Module._extensions['.js'] = function(module, filename) {
+  if (path.resolve(filename) !== mainJsPath) return originalJsLoader(module, filename);
+  const source = fs.readFileSync(filename, 'utf8');
+  const startMarker = 'function uploadPageHtml(token) {';
+  const endMarker = '\nfunction findCloudflared()';
+  const start = source.indexOf(startMarker);
+  const end = start >= 0 ? source.indexOf(endMarker, start) : -1;
+  if (start < 0 || end < 0) return originalJsLoader(module, filename);
+
+  const replacement = "const { uploadPageHtml } = require('./qr-upload-ui');\n";
+  const transformed = source.slice(0, start) + replacement + source.slice(end + 1);
+  module._compile(transformed, filename);
+};
 
 require('./main.js');
 
