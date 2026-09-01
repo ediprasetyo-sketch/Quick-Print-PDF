@@ -16,25 +16,16 @@ jobs:
           fetch-depth: 0
 
       - name: Patch Electron integration
-        shell: python
+        shell: bash
         run: |
+          python3 - <<'PY'
           from pathlib import Path
 
           main = Path('main.js')
           text = main.read_text(encoding='utf-8')
           marker = "// QR_QUEUE_V4_1_INTEGRATION"
           if marker not in text:
-              text += r'''
-
-// QR_QUEUE_V4_1_INTEGRATION
-const { fetchJobs: fetchQrQueueJobs, downloadJob: downloadQrQueueJob } = require('./qr-queue-client');
-ipcMain.handle('qr-queue-jobs', async (_event, status) => fetchQrQueueJobs(status || 'uploaded'));
-ipcMain.handle('qr-queue-download', async (_event, jobId) => {
-  const file = await downloadQrQueueJob(jobId);
-  currentFile = file.path;
-  return { path: file.path, name: `${jobId}.pdf`, url: fileUrl(file.path), size: file.size, jobId };
-});
-'''
+              text += '''\n\n// QR_QUEUE_V4_1_INTEGRATION\nconst { fetchJobs: fetchQrQueueJobs, downloadJob: downloadQrQueueJob } = require('./qr-queue-client');\nipcMain.handle('qr-queue-jobs', async (_event, status) => fetchQrQueueJobs(status || 'uploaded'));\nipcMain.handle('qr-queue-download', async (_event, jobId) => {\n  const file = await downloadQrQueueJob(jobId);\n  currentFile = file.path;\n  return { path: file.path, name: `${jobId}.pdf`, url: fileUrl(file.path), size: file.size, jobId };\n});\n'''
               main.write_text(text, encoding='utf-8')
 
           preload = Path('preload.js')
@@ -51,77 +42,9 @@ ipcMain.handle('qr-queue-download', async (_event, jobId) => {
           text = renderer.read_text(encoding='utf-8')
           marker = "/* QR_QUEUE_V4_1_RENDERER */"
           if marker not in text:
-              text += r'''
-
-/* QR_QUEUE_V4_1_RENDERER */
-(() => {
-  const style = document.createElement('style');
-  style.textContent = `
-    #qrQueuePanel{position:fixed;right:18px;top:18px;z-index:9999;width:360px;background:#fff;border:1px solid #dbe4e3;border-radius:14px;box-shadow:0 12px 36px #163b3518;padding:14px;font-family:Inter,Arial,sans-serif}
-    #qrQueuePanel .qq-head{display:flex;justify-content:space-between;align-items:center;font-weight:800;color:#203335;margin-bottom:8px}
-    #qrQueuePanel .qq-status{font-size:11px;color:#647477;margin-bottom:8px}
-    #qrQueuePanel .qq-item{display:flex;gap:8px;align-items:center;border-top:1px solid #edf1f1;padding:9px 0}
-    #qrQueuePanel .qq-name{flex:1;min-width:0;font-size:12px;color:#203335;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-    #qrQueuePanel button{border:0;border-radius:8px;padding:7px 10px;background:#1f6f62;color:#fff;font-weight:700;cursor:pointer}
-    #qrQueuePanel button:disabled{opacity:.55;cursor:wait}
-    #qrQueuePanel .qq-empty{font-size:12px;color:#7b898a;padding:8px 0}
-  `;
-  document.head.appendChild(style);
-
-  const panel = document.createElement('section');
-  panel.id = 'qrQueuePanel';
-  panel.innerHTML = '<div class="qq-head"><span>QR Queue</span><span>V4.0</span></div><div id="qqStatus" class="qq-status">Menghubungkan…</div><div id="qqList"></div>';
-  document.body.appendChild(panel);
-
-  const statusEl = panel.querySelector('#qqStatus');
-  const listEl = panel.querySelector('#qqList');
-  let lastIds = new Set();
-
-  async function refreshQrQueue() {
-    try {
-      const jobs = await window.revo.qrQueueJobs('uploaded');
-      statusEl.textContent = `${jobs.length} job tersedia · diperbarui ${new Date().toLocaleTimeString()}`;
-      if (!jobs.length) {
-        listEl.innerHTML = '<div class="qq-empty">Belum ada job upload.</div>';
-        return;
-      }
-      listEl.replaceChildren();
-      for (const job of jobs.slice(0, 8)) {
-        const row = document.createElement('div');
-        row.className = 'qq-item';
-        const name = document.createElement('div');
-        name.className = 'qq-name';
-        name.textContent = `${job.jobId} · ${job.filename || job.fileName || 'PDF'}`;
-        const btn = document.createElement('button');
-        btn.textContent = 'Buka';
-        btn.onclick = async () => {
-          btn.disabled = true;
-          btn.textContent = '…';
-          try {
-            const file = await window.revo.qrQueueDownload(job.jobId);
-            await loadPdf(file);
-            toast(`QR Job ${job.jobId} dibuka.`);
-          } catch (err) {
-            toast(`QR Queue: ${err?.message || err}`, true);
-          } finally {
-            btn.disabled = false;
-            btn.textContent = 'Buka';
-          }
-        };
-        row.append(name, btn);
-        listEl.appendChild(row);
-        lastIds.add(job.jobId);
-      }
-    } catch (err) {
-      statusEl.textContent = `QR Queue gagal: ${err?.message || err}`;
-    }
-  }
-
-  setTimeout(refreshQrQueue, 1200);
-  setInterval(refreshQrQueue, 5000);
-})();
-'''
+              text += '''\n\n/* QR_QUEUE_V4_1_RENDERER */\n(() => {\n  const style = document.createElement('style');\n  style.textContent = `\n    #qrQueuePanel{position:fixed;right:18px;top:18px;z-index:9999;width:360px;background:#fff;border:1px solid #dbe4e3;border-radius:14px;box-shadow:0 12px 36px #163b3518;padding:14px;font-family:Inter,Arial,sans-serif}\n    #qrQueuePanel .qq-head{display:flex;justify-content:space-between;align-items:center;font-weight:800;color:#203335;margin-bottom:8px}\n    #qrQueuePanel .qq-status{font-size:11px;color:#647477;margin-bottom:8px}\n    #qrQueuePanel .qq-item{display:flex;gap:8px;align-items:center;border-top:1px solid #edf1f1;padding:9px 0}\n    #qrQueuePanel .qq-name{flex:1;min-width:0;font-size:12px;color:#203335;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}\n    #qrQueuePanel button{border:0;border-radius:8px;padding:7px 10px;background:#1f6f62;color:#fff;font-weight:700;cursor:pointer}\n    #qrQueuePanel button:disabled{opacity:.55;cursor:wait}\n    #qrQueuePanel .qq-empty{font-size:12px;color:#7b898a;padding:8px 0}\n  `;\n  document.head.appendChild(style);\n\n  const panel = document.createElement('section');\n  panel.id = 'qrQueuePanel';\n  panel.innerHTML = '<div class="qq-head"><span>QR Queue</span><span>V4.0</span></div><div id="qqStatus" class="qq-status">Menghubungkan…</div><div id="qqList"></div>';\n  document.body.appendChild(panel);\n\n  const statusEl = panel.querySelector('#qqStatus');\n  const listEl = panel.querySelector('#qqList');\n\n  async function refreshQrQueue() {\n    try {\n      const jobs = await window.revo.qrQueueJobs('uploaded');\n      statusEl.textContent = `${jobs.length} job tersedia · diperbarui ${new Date().toLocaleTimeString()}`;\n      if (!jobs.length) {\n        listEl.innerHTML = '<div class="qq-empty">Belum ada job upload.</div>';\n        return;\n      }\n      listEl.replaceChildren();\n      for (const job of jobs.slice(0, 8)) {\n        const row = document.createElement('div');\n        row.className = 'qq-item';\n        const name = document.createElement('div');\n        name.className = 'qq-name';\n        name.textContent = `${job.jobId} · ${job.filename || job.fileName || 'PDF'}`;\n        const btn = document.createElement('button');\n        btn.textContent = 'Buka';\n        btn.onclick = async () => {\n          btn.disabled = true;\n          btn.textContent = '…';\n          try {\n            const file = await window.revo.qrQueueDownload(job.jobId);\n            await loadPdf(file);\n            toast(`QR Job ${job.jobId} dibuka.`);\n          } catch (err) {\n            toast(`QR Queue: ${err?.message || err}`, true);\n          } finally {\n            btn.disabled = false;\n            btn.textContent = 'Buka';\n          }\n        };\n        row.append(name, btn);\n        listEl.appendChild(row);\n      }\n    } catch (err) {\n      statusEl.textContent = `QR Queue gagal: ${err?.message || err}`;\n    }\n  }\n\n  setTimeout(refreshQrQueue, 1200);\n  setInterval(refreshQrQueue, 5000);\n})();\n'''
               renderer.write_text(text, encoding='utf-8')
+          PY
 
       - name: Commit integration patch
         shell: bash
