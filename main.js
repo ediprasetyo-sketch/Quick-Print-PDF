@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
+﻿const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
 const http = require('node:http');
 const os = require('node:os');
 const Busboy = require('busboy');
@@ -131,7 +131,7 @@ function getLanIp() {
 
 function uploadPageHtml(token) {
   const safeToken = String(token).replace(/[^a-zA-Z0-9_-]/g, '');
-  return `<!doctype html><html lang="id"><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta charset="utf-8"><title>Revo Print Shop</title><style>*{box-sizing:border-box}body{font-family:Inter,Arial,sans-serif;background:linear-gradient(135deg,#eef6f4,#f8fbfa);margin:0;padding:20px;color:#203335}main{max-width:560px;margin:28px auto;background:#fff;padding:30px;border-radius:22px;box-shadow:0 18px 50px #153b3517}h1{font-size:25px;margin:0 0 8px}p{color:#5b6b6d;line-height:1.55}.badge{display:inline-block;background:#e6f4f0;color:#1f6f62;border-radius:999px;padding:7px 11px;font-size:12px;font-weight:700;margin-bottom:14px}.drop{border:2px dashed #b9cdca;border-radius:16px;padding:24px;text-align:center;margin:18px 0;background:#fbfdfd}input{width:100%;padding:14px;border:1px solid #ccd7d7;border-radius:10px;margin:12px 0;background:#fff}button{width:100%;padding:15px;border:0;border-radius:12px;background:#1f6f62;color:#fff;font-weight:700;font-size:16px;cursor:pointer}button:disabled{opacity:.55}.hint{font-size:12px;color:#738284;margin-top:10px}.job{margin-top:18px;padding:15px;border-radius:12px;background:#f1f7f5;color:#29433f;display:none}.ok{color:#1f6f62;font-weight:700}.err{color:#9b3838;font-weight:700}</style></head><body><main><div class="badge">REVO PRINT SHOP · FREE INTERNET UPLOAD</div><h1>Kirim PDF untuk dicetak</h1><p>Pilih file PDF dari HP. Tidak perlu domain atau Wi-Fi yang sama. File akan dikirim ke Revo Print Shop dan masuk ke antrean cetak.</p><form id="f"><div class="drop"><input id="file" type="file" name="pdf" accept="application/pdf,.pdf" required></div><button id="send" type="submit">Kirim PDF</button><div class="hint">Maksimum 50 MB · Hanya PDF · Link gratis sementara dari Cloudflare · token upload acak · maksimum 50 MB.</div></form><div id="msg"></div><div id="job" class="job"></div></main><script>const f=document.getElementById('f'),send=document.getElementById('send'),msg=document.getElementById('msg'),job=document.getElementById('job');f.onsubmit=async e=>{e.preventDefault();send.disabled=true;msg.className='';msg.textContent='Mengirim PDF…';job.style.display='none';try{const file=document.getElementById('file').files[0];if(!file||!file.name.toLowerCase().endsWith('.pdf'))throw new Error('Pilih file PDF.');const fd=new FormData();fd.append('pdf',file,file.name);const r=await fetch('/upload/${safeToken}',{method:'POST',body:fd});const j=await r.json();if(!r.ok)throw new Error(j.message||'Upload gagal.');msg.className='ok';msg.textContent='PDF berhasil dikirim.';job.innerHTML='<b>Nomor job: '+j.jobId+'</b><br>'+j.fileName+' · '+j.pages+' halaman';job.style.display='block';f.reset()}catch(x){msg.className='err';msg.textContent='Gagal: '+x.message}finally{send.disabled=false}};</script></main></body></html>`;
+  return `<!doctype html><html lang="id"><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta charset="utf-8"><title>Revo Print Shop</title><style>*{box-sizing:border-box}body{font-family:Inter,Arial,sans-serif;background:linear-gradient(135deg,#eef6f4,#f8fbfa);margin:0;padding:20px;color:#203335}main{max-width:560px;margin:28px auto;background:#fff;padding:30px;border-radius:22px;box-shadow:0 18px 50px #153b3517}h1{font-size:25px;margin:0 0 8px}p{color:#5b6b6d;line-height:1.55}.badge{display:inline-block;background:#e6f4f0;color:#1f6f62;border-radius:999px;padding:7px 11px;font-size:12px;font-weight:700;margin-bottom:14px}.drop{border:2px dashed #b9cdca;border-radius:16px;padding:24px;text-align:center;margin:18px 0;background:#fbfdfd}input{width:100%;padding:14px;border:1px solid #ccd7d7;border-radius:10px;margin:12px 0;background:#fff}button{width:100%;padding:15px;border:0;border-radius:12px;background:#1f6f62;color:#fff;font-weight:700;font-size:16px;cursor:pointer}button:disabled{opacity:.55}.hint{font-size:12px;color:#738284;margin-top:10px}.job{margin-top:18px;padding:15px;border-radius:12px;background:#f1f7f5;color:#29433f;display:none}.ok{color:#1f6f62;font-weight:700}.err{color:#9b3838;font-weight:700}</style></head><body><main><div class="badge">REVO PRINT SHOP Â· FREE INTERNET UPLOAD</div><h1>Kirim PDF untuk dicetak</h1><p>Pilih file PDF dari HP. Tidak perlu domain atau Wi-Fi yang sama. File akan dikirim ke Revo Print Shop dan masuk ke antrean cetak.</p><form id="f"><div class="drop"><input id="file" type="file" name="pdf" accept="application/pdf,.pdf" required></div><button id="send" type="submit">Kirim PDF</button><div class="hint">Maksimum 50 MB Â· Hanya PDF Â· Link gratis sementara dari Cloudflare Â· token upload acak Â· maksimum 50 MB.</div></form><div id="msg"></div><div id="job" class="job"></div></main><script>const f=document.getElementById('f'),send=document.getElementById('send'),msg=document.getElementById('msg'),job=document.getElementById('job');f.onsubmit=async e=>{e.preventDefault();send.disabled=true;msg.className='';msg.textContent='Mengirim PDFâ€¦';job.style.display='none';try{const file=document.getElementById('file').files[0];if(!file||!file.name.toLowerCase().endsWith('.pdf'))throw new Error('Pilih file PDF.');const fd=new FormData();fd.append('pdf',file,file.name);const r=await fetch('/upload/${safeToken}',{method:'POST',body:fd});const j=await r.json();if(!r.ok)throw new Error(j.message||'Upload gagal.');msg.className='ok';msg.textContent='PDF berhasil dikirim.';job.innerHTML='<b>Nomor job: '+j.jobId+'</b><br>'+j.fileName+' Â· '+j.pages+' halaman';job.style.display='block';f.reset()}catch(x){msg.className='err';msg.textContent='Gagal: '+x.message}finally{send.disabled=false}};</script></main></body></html>`;
 }
 
 function findCloudflared() {
@@ -275,7 +275,7 @@ function createWindow() {
     minWidth: 1050,
     minHeight: 700,
     backgroundColor: '#f5f8f7',
-    title: 'Revo Print Shop — PDF Print Utility',
+    title: 'Revo Print Shop â€” PDF Print Utility',
     icon: path.join(__dirname, 'build', 'icon.ico'),
     autoHideMenuBar: false,
     webPreferences: {
@@ -300,7 +300,15 @@ app.whenReady().then(() => {
 app.on('before-quit', async () => { try { await stopUploadServer(); } catch {} try { await stopAppServer(); } catch {} });
 app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
 
-ipcMain.handle('start-qr-upload', async () => startUploadServer());
+ipcMain.handle('start-qr-upload', async () => {
+  const url = 'https://qr.revolearning.online';
+  const qrDataUrl = await QRCode.toDataURL(url, {
+    margin: 1,
+    width: 360,
+    errorCorrectionLevel: 'M'
+  });
+  return { url, qrDataUrl, public: true, jobs: [] };
+});
 ipcMain.handle('stop-qr-upload', async () => stopUploadServer());
 
 ipcMain.handle('qz-get-certificate', async () => ensureQzIdentity().cert);
@@ -529,3 +537,4 @@ ipcMain.handle('close-file', async () => {
 ipcMain.handle('show-in-folder', async () => {
   if (currentFile) shell.showItemInFolder(currentFile);
 });
+
