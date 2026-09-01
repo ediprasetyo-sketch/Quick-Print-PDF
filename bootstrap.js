@@ -5,6 +5,7 @@ const path = require('node:path');
 require('./main.js');
 
 const DEFAULT_BASE_URL = 'https://qr.revolearning.online';
+const MAX_QR_PDF_BYTES = 50 * 1024 * 1024;
 const configPath = () => path.join(app.getPath('userData'), 'qr-queue-config.json');
 
 function readConfig() {
@@ -78,11 +79,14 @@ ipcMain.handle('remote-queue-list', async () => {
 ipcMain.handle('remote-queue-download', async (_event, jobId) => {
   const safeJobId = String(jobId || '').trim();
   if (!/^[A-Za-z0-9_-]+$/.test(safeJobId)) throw new Error('Job ID QR tidak valid.');
-  const response = await qrRequest(`/api/jobs/${encodeURIComponent(safeJobId)}/file`);
+  const response = await qrRequest(`/api/jobs/${encodeURIComponent(safeJobId)}/file`, { headers: { Accept: 'application/pdf' } });
+  const declaredLength = Number(response.headers.get('content-length') || 0);
+  if (declaredLength > MAX_QR_PDF_BYTES) throw new Error('PDF QR Queue melebihi batas 50 MB.');
   const bytes = Buffer.from(await response.arrayBuffer());
   if (!bytes.length) throw new Error('PDF QR Queue kosong.');
+  if (bytes.length > MAX_QR_PDF_BYTES) throw new Error('PDF QR Queue melebihi batas 50 MB.');
   const contentType = response.headers.get('content-type') || '';
-  if (!contentType.toLowerCase().includes('application/pdf') && bytes.subarray(0, 4).toString() !== '%PDF') throw new Error('Server QR Queue tidak mengembalikan PDF.');
+  if (!contentType.toLowerCase().includes('application/pdf') && bytes.subarray(0, 5).toString() !== '%PDF-') throw new Error('Server QR Queue tidak mengembalikan PDF.');
 
   const cfg = readConfig();
   const jobsResponse = await qrRequest('/api/jobs?status=uploaded');
@@ -94,6 +98,13 @@ ipcMain.handle('remote-queue-download', async (_event, jobId) => {
   const tempDir = path.join(app.getPath('temp'), 'revo-print-shop', 'qr-queue');
   fs.mkdirSync(tempDir, { recursive: true });
   const outputPath = path.join(tempDir, `${safeJobId}-${Date.now()}.pdf`);
-  fs.writeFileSync(outputPath, bytes);
+  const tempPath = `${outputPath}.part`;
+  try {
+    fs.writeFileSync(tempPath, bytes, { mode: 0o600 });
+    fs.renameSync(tempPath, outputPath);
+  } catch (err) {
+    try { if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath); } catch {}
+    throw new Error(`Gagal menyimpan PDF QR Queue: ${err.message}`);
+  }
   return { path: outputPath, name: fileName, url: `file://${outputPath.replace(/\\/g, '/')}`, size: bytes.length, jobId: safeJobId, source: cfg.baseUrl };
 });
