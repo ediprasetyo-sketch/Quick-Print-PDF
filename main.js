@@ -1,4 +1,5 @@
 const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
+require('./remote-queue');
 const http = require('node:http');
 const os = require('node:os');
 const Busboy = require('busboy');
