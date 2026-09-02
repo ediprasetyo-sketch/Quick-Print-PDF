@@ -1,4 +1,4 @@
-const { app, ipcMain } = require('electron');
+const { app, ipcMain, BrowserWindow } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const Module = require('node:module');
@@ -25,8 +25,11 @@ Module._extensions['.js'] = function(module, filename) {
 require('./main.js');
 
 const DEFAULT_BASE_URL = 'https://qr.revolearning.online';
-const MAX_QR_PDF_BYTES = 50 * 1024 * 1024;
 const configPath = () => path.join(app.getPath('userData'), 'qr-queue-config.json');
+const consumedJobsPath = () => path.join(app.getPath('userData'), 'qr-queue-consumed.json');
+const AUTO_POLL_MS = 3000;
+let autoReceiveTimer = null;
+let autoReceiveBusy = false;
 
 function readConfig() {
   const fallback = { baseUrl: DEFAULT_BASE_URL, apiKey: '' };
@@ -47,6 +50,24 @@ function writeConfig(input) {
   fs.mkdirSync(path.dirname(configPath()), { recursive: true });
   fs.writeFileSync(configPath(), JSON.stringify({ baseUrl, apiKey }, null, 2), { encoding: 'utf8' });
   return { baseUrl, hasApiKey: Boolean(apiKey) };
+}
+
+function readConsumedJobs() {
+  try {
+    if (!fs.existsSync(consumedJobsPath())) return new Set();
+    const parsed = JSON.parse(fs.readFileSync(consumedJobsPath(), 'utf8'));
+    return new Set(Array.isArray(parsed) ? parsed.filter(x => typeof x === 'string') : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function rememberConsumedJob(jobId) {
+  const set = readConsumedJobs();
+  set.add(String(jobId));
+  const values = Array.from(set).slice(-1000);
+  fs.mkdirSync(path.dirname(consumedJobsPath()), { recursive: true });
+  fs.writeFileSync(consumedJobsPath(), JSON.stringify(values, null, 2), 'utf8');
 }
 
 async function qrRequest(pathname, options = {}) {
@@ -76,14 +97,7 @@ async function qrRequest(pathname, options = {}) {
   return response;
 }
 
-ipcMain.handle('remote-queue-get-config', async () => {
-  const cfg = readConfig();
-  return { baseUrl: cfg.baseUrl, hasApiKey: Boolean(cfg.apiKey) };
-});
-
-ipcMain.handle('remote-queue-save-config', async (_event, input) => writeConfig(input));
-
-ipcMain.handle('remote-queue-list', async () => {
+async function listRemoteJobs() {
   const response = await qrRequest('/api/jobs?status=uploaded');
   const body = await response.json();
   const jobs = Array.isArray(body?.jobs) ? body.jobs : Array.isArray(body) ? body : [];
@@ -94,25 +108,36 @@ ipcMain.handle('remote-queue-list', async () => {
     createdAt: job.createdAt || job.receivedAt || null,
     status: job.status || 'uploaded'
   })).filter(job => job.jobId);
+}
+
+ipcMain.handle('remote-queue-get-config', async () => {
+  const cfg = readConfig();
+  return { baseUrl: cfg.baseUrl, hasApiKey: Boolean(cfg.apiKey) };
 });
 
-ipcMain.handle('remote-queue-download', async (_event, jobId) => {
+ipcMain.handle('remote-queue-save-config', async (_event, input) => {
+  const result = writeConfig(input);
+  // Wake the watcher immediately after configuration is saved.
+  setTimeout(() => autoReceiveOnce().catch(err => console.warn('QR auto receive:', err.message)), 50);
+  return result;
+});
+
+ipcMain.handle('remote-queue-list', async () => listRemoteJobs());
+
+async function downloadRemoteJob(jobId) {
   const safeJobId = String(jobId || '').trim();
   if (!/^[A-Za-z0-9_-]+$/.test(safeJobId)) throw new Error('Job ID QR tidak valid.');
+
   const response = await qrRequest(`/api/jobs/${encodeURIComponent(safeJobId)}/file`, { headers: { Accept: 'application/pdf' } });
-  const declaredLength = Number(response.headers.get('content-length') || 0);
-  if (declaredLength > MAX_QR_PDF_BYTES) throw new Error('PDF QR Queue melebihi batas 50 MB.');
   const bytes = Buffer.from(await response.arrayBuffer());
   if (!bytes.length) throw new Error('PDF QR Queue kosong.');
-  if (bytes.length > MAX_QR_PDF_BYTES) throw new Error('PDF QR Queue melebihi batas 50 MB.');
   const contentType = response.headers.get('content-type') || '';
-  if (!contentType.toLowerCase().includes('application/pdf') && bytes.subarray(0, 5).toString() !== '%PDF-') throw new Error('Server QR Queue tidak mengembalikan PDF.');
+  if (!contentType.toLowerCase().includes('application/pdf') && bytes.subarray(0, 5).toString() !== '%PDF-') {
+    throw new Error('Server QR Queue tidak mengembalikan PDF.');
+  }
 
-  const cfg = readConfig();
-  const jobsResponse = await qrRequest('/api/jobs?status=uploaded');
-  const jobsBody = await jobsResponse.json();
-  const jobs = Array.isArray(jobsBody?.jobs) ? jobsBody.jobs : [];
-  const remoteJob = jobs.find(j => String(j.jobId || j.id) === safeJobId) || {};
+  const jobs = await listRemoteJobs();
+  const remoteJob = jobs.find(j => String(j.jobId) === safeJobId) || {};
   const fileName = path.basename(String(remoteJob.filename || remoteJob.fileName || `${safeJobId}.pdf`)).replace(/[^\w .()\-]/g, '_');
 
   const tempDir = path.join(app.getPath('temp'), 'revo-print-shop', 'qr-queue');
@@ -126,5 +151,61 @@ ipcMain.handle('remote-queue-download', async (_event, jobId) => {
     try { if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath); } catch {}
     throw new Error(`Gagal menyimpan PDF QR Queue: ${err.message}`);
   }
-  return { path: outputPath, name: fileName, url: `file://${outputPath.replace(/\\/g, '/')}`, size: bytes.length, jobId: safeJobId, source: cfg.baseUrl };
+  return { path: outputPath, name: fileName, url: `file://${outputPath.replace(/\\/g, '/')}`, size: bytes.length, jobId: safeJobId, source: readConfig().baseUrl };
+}
+
+ipcMain.handle('remote-queue-download', async (_event, jobId) => downloadRemoteJob(jobId));
+
+async function autoReceiveOnce() {
+  if (autoReceiveBusy) return false;
+  const cfg = readConfig();
+  if (!cfg.apiKey) return false;
+
+  autoReceiveBusy = true;
+  try {
+    const jobs = await listRemoteJobs();
+    const consumed = readConsumedJobs();
+    const pending = jobs.filter(job => !consumed.has(String(job.jobId)));
+    if (!pending.length) return false;
+
+    // Oldest first: this keeps the desktop queue deterministic when several
+    // phones upload PDFs close together.
+    pending.sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
+    const job = pending[0];
+    const file = await downloadRemoteJob(job.jobId);
+
+    const win = BrowserWindow.getAllWindows().find(w => !w.isDestroyed());
+    if (!win) return false;
+
+    // Reuse the existing QR PDF event path in renderer.js. That path already
+    // calls set-current-file and loadPdf(), so the normal preview opens automatically.
+    win.webContents.send('qr-pdf-received', file);
+    rememberConsumedJob(job.jobId);
+    console.log(`[QR AUTO] ${job.jobId} -> ${file.name}`);
+    return true;
+  } catch (err) {
+    console.warn('[QR AUTO] ' + (err?.message || String(err)));
+    return false;
+  } finally {
+    autoReceiveBusy = false;
+  }
+}
+
+function startAutoReceiveWatcher() {
+  if (autoReceiveTimer) return;
+  // Do not make startup depend on QR Queue being configured. The watcher simply
+  // stays idle until an API key exists.
+  autoReceiveOnce().catch(err => console.warn('[QR AUTO]', err.message));
+  autoReceiveTimer = setInterval(() => {
+    autoReceiveOnce().catch(err => console.warn('[QR AUTO]', err.message));
+  }, AUTO_POLL_MS);
+}
+
+app.whenReady().then(() => {
+  startAutoReceiveWatcher();
+});
+
+app.on('before-quit', () => {
+  if (autoReceiveTimer) clearInterval(autoReceiveTimer);
+  autoReceiveTimer = null;
 });
