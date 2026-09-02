@@ -3,18 +3,17 @@ setlocal EnableExtensions
 cd /d "%~dp0"
 
 echo ================================================
-echo Revo Print Shop V1.4.1 - Windows Release Build
+echo Revo Print Shop V1.5.5 - Windows Release Build
 echo ================================================
 
 echo.
-echo [1/4] Checking Node.js and npm...
+echo [1/3] Checking Node.js and npm...
 where node >nul 2>nul
 if errorlevel 1 (
   echo Node.js tidak ditemukan. Install Node.js LTS terlebih dahulu.
   pause
   exit /b 1
 )
-
 where npm >nul 2>nul
 if errorlevel 1 (
   echo npm tidak ditemukan.
@@ -23,22 +22,7 @@ if errorlevel 1 (
 )
 
 echo.
-echo [2/4] Cleaning obsolete Cloudflared desktop dependency...
-if exist cloudflared.exe (
-  echo ERROR: cloudflared.exe masih berada di project desktop.
-  echo Hapus file tersebut. V1.4.1 tidak memakai Cloudflared di desktop.
-  pause
-  exit /b 1
-)
-if exist setup-internet-qr.bat (
-  echo ERROR: setup-internet-qr.bat masih berada di project desktop.
-  echo Hapus file tersebut. V1.4.1 tidak memakai Cloudflared di desktop.
-  pause
-  exit /b 1
-)
-
-echo.
-echo [3/4] Installing dependencies and validating configuration...
+echo [2/3] Installing dependencies and validating source...
 call npm install
 if errorlevel 1 (
   echo npm install gagal.
@@ -53,15 +37,19 @@ if errorlevel 1 (
   exit /b 1
 )
 
+node --check main.js
+if errorlevel 1 exit /b 1
 node --check bootstrap.js
 if errorlevel 1 exit /b 1
 node --check preload.js
 if errorlevel 1 exit /b 1
 node --check renderer.js
 if errorlevel 1 exit /b 1
+node --check print.js
+if errorlevel 1 exit /b 1
 
 echo.
-echo [4/4] Building NSIS installer + portable EXE...
+echo [3/3] Building NSIS installer + portable EXE...
 if exist release rmdir /s /q release
 call npx electron-builder --config electron-builder.yml --win nsis portable --publish never
 if errorlevel 1 (
@@ -72,7 +60,7 @@ if errorlevel 1 (
 
 echo.
 echo ================================================
-echo BUILD V1.4.1 BERHASIL
+echo BUILD V1.5.5 BERHASIL
 echo ================================================
 echo Hasil ada di folder release\
 dir /b release\
