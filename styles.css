@@ -6,3 +6,23 @@
 .qr-network{margin:10px 0 14px;padding:10px 12px;border-radius:10px;background:#edf7f4;color:#1f6f62;font-size:13px;font-weight:700}.qr-dialog .outline-btn{margin-top:8px}.qr-dialog #qrCopy{width:100%}.qr-url{word-break:break-all}
 
 .pdf-info-bar{min-height:70px;background:#fbfcfb;border-top:1px solid var(--line);padding:9px 16px;display:flex;align-items:center;justify-content:space-between;gap:18px}.pdf-info-title{display:flex;align-items:center;gap:9px;min-width:180px}.info-file-icon{width:31px;height:31px;border-radius:8px;background:#e8f5f4;color:#237c82;display:grid;place-items:center;font-size:8px;font-weight:900}.pdf-info-title b{display:block;font-size:10px;color:#415255;max-width:230px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pdf-info-title small{display:block;font-size:8.5px;color:#7a8788;margin-top:3px}.pdf-info-grid{display:grid;grid-template-columns:repeat(4,minmax(95px,1fr));gap:12px;flex:1}.pdf-info-grid div{display:flex;flex-direction:column;gap:4px}.pdf-info-grid span{font-size:8px;text-transform:uppercase;letter-spacing:.04em;color:#7a8788}.pdf-info-grid b{font-size:10px;color:#405154;white-space:nowrap}@media(max-width:1000px){.pdf-info-bar{align-items:flex-start}.pdf-info-grid{grid-template-columns:repeat(2,minmax(100px,1fr));gap:8px}}@media(max-width:700px){.pdf-info-bar{flex-direction:column}.pdf-info-grid{width:100%;grid-template-columns:repeat(2,1fr)}}
+
+/* V1.5.5 UI PATCH — QR Upload */
+.qr-dialog{width:min(470px,calc(100vw - 32px));padding:30px 28px 26px;border-radius:24px;box-shadow:0 28px 90px rgba(0,0,0,.24);border:1px solid rgba(220,229,228,.9)}
+.qr-dialog-title{font-size:22px;letter-spacing:-.35px;margin:5px 28px 9px;color:#223335}
+.qr-dialog p{max-width:390px;margin:0 auto 18px;font-size:13px;line-height:1.6;color:#667577}
+.modal-close{width:34px;height:34px;right:10px;top:9px;border-radius:10px;font-size:27px;line-height:1;color:#6b7778;display:grid;place-items:center}
+.modal-close:hover{background:#f1f5f4;color:#243638}
+.qr-box{gap:10px}
+.qr-box img{width:min(300px,72vw);height:min(300px,72vw);border-radius:14px;border:1px solid #dbe6e4;box-shadow:0 4px 18px rgba(35,65,67,.08);image-rendering:auto}
+.qr-url{max-width:300px;font-size:11px;font-weight:600;color:#28757b;background:#f1f7f6;border:1px solid #e0ecea;padding:8px 11px;border-radius:9px}
+.qr-status{margin:14px 0 9px;padding:12px 14px;border:1px solid #d8e9e6;border-radius:12px;background:#f1f8f6;color:#31585b;font-size:12px;font-weight:700;line-height:1.4;min-height:43px;display:flex;align-items:center;justify-content:center}
+.qr-status::before{content:"";width:8px;height:8px;border-radius:50%;background:#2ca36b;box-shadow:0 0 0 4px #dff3e9;margin-right:9px;flex:none}
+.qr-network{margin:0 0 10px;padding:11px 13px;border-radius:11px;background:#eef7f6;border:1px solid #dceceb;color:#24746d;font-size:11px;line-height:1.45;font-weight:700}
+.qr-dialog .outline-btn{height:40px;margin-top:8px;border-radius:10px;font-size:11px;justify-content:center;font-weight:700}
+.qr-dialog #qrCopy{background:#217f87;border-color:#217f87;color:#fff;box-shadow:0 3px 8px rgba(33,127,135,.16)}
+.qr-dialog #qrCopy:hover{background:#1a7078;border-color:#1a7078}
+.qr-dialog #qrCopy::before{content:"↗";font-size:14px;margin-right:4px}
+.qr-dialog #qrStop{background:#fff;color:#4d5e60;border-color:#d6e1df}
+.qr-dialog #qrStop:hover{background:#f5f8f7}
+@media(max-width:520px){.qr-dialog{width:calc(100vw - 24px);padding:24px 18px 20px;border-radius:20px}.qr-dialog-title{font-size:19px}.qr-dialog p{font-size:12px}.qr-box img{width:min(270px,70vw);height:min(270px,70vw)}.qr-url{max-width:270px}.qr-network{font-size:10px}}
