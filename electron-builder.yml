@@ -4,6 +4,7 @@ artifactName: Revo-Print-Shop-${version}-${arch}.${ext}
 compression: normal
 asar: true
 files:
+  - bootstrap.js
   - main.js
   - preload.js
   - index.html
