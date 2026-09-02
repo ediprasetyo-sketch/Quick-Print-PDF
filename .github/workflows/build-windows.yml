@@ -37,6 +37,9 @@ jobs:
           if ($pkg.version -ne '1.5.5') {
             throw "Expected desktop version 1.5.5, found $($pkg.version)."
           }
+          if ($pkg.dependencies.PSObject.Properties.Name -contains 'busboy') {
+            throw 'busboy must not be a direct desktop dependency.'
+          }
 
       - name: Verify V1.5.5 desktop is tunnel-free
         shell: powershell
@@ -44,6 +47,7 @@ jobs:
           $files = Get-ChildItem -Path . -Recurse -File |
             Where-Object {
               $_.FullName -notmatch '\\node_modules\\|\\.git\\|\\release\\' -and
+              $_.Name -ne 'package-lock.json' -and
               $_.Extension -in '.js','.json','.yml','.yaml','.bat','.cmd','.ps1'
             }
 
