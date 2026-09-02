@@ -1,7 +1,7 @@
 {
   "name": "revo-print-shop",
-  "version": "1.0.19",
-  "description": "Revo Print Shop V1.4.3 — QR Queue lifecycle cleanup and automatic receive claim.",
+  "version": "1.0.20",
+  "description": "Revo Print Shop V1.5 — QR Queue receive hardening and lifecycle recovery.",
   "main": "bootstrap.js",
   "author": "Revo Print Shop",
   "license": "MIT",
