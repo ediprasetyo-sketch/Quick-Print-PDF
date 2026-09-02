@@ -3,6 +3,8 @@ name: Build Windows
 on:
   workflow_dispatch:
   push:
+    branches:
+      - main
     tags:
       - 'v*'
 
@@ -25,6 +27,12 @@ jobs:
 
       - name: Install dependencies
         run: npm install
+
+      - name: Syntax check V1.4 QR Receive files
+        run: |
+          node --check bootstrap.js
+          node --check preload.js
+          node --check renderer.js
 
       - name: Download and verify Cloudflared
         shell: cmd
