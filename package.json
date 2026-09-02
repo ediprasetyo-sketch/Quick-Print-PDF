@@ -1,7 +1,7 @@
 {
   "name": "revo-print-shop",
-  "version": "1.0.22",
-  "description": "Revo Print Shop V1.5.2 — persist received QR jobs until manual delete.",
+  "version": "1.0.23",
+  "description": "Revo Print Shop V1.5.3 — NAS-hosted QR Upload with no desktop tunnel.",
   "main": "bootstrap.js",
   "author": "Revo Print Shop",
   "license": "MIT",
@@ -15,7 +15,6 @@
     "electron-builder": "26.15.3"
   },
   "dependencies": {
-    "busboy": "^1.6.0",
     "pdf-lib": "1.17.1",
     "pdfjs-dist": "4.10.38",
     "qrcode": "^1.5.4",
