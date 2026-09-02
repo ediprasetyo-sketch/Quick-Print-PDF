@@ -28,6 +28,14 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Verify V1.4.1 desktop has no Cloudflared
+        shell: powershell
+        run: |
+          if (Test-Path "cloudflared.exe") { throw "cloudflared.exe must not be part of the desktop project." }
+          if (Test-Path "setup-internet-qr.bat") { throw "setup-internet-qr.bat must not be part of the desktop project." }
+          $builder = Get-Content "electron-builder.yml" -Raw
+          if ($builder -match "cloudflared") { throw "electron-builder.yml still references Cloudflared." }
+
       - name: Syntax check V1.4 QR Receive files
         run: |
           node --check bootstrap.js
