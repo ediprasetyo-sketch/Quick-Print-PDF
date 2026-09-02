@@ -29,7 +29,7 @@ function addRemoteQueueUi() {
   button.id = 'remoteQueueButton';
   button.className = qrBtn.className;
   button.innerHTML = '<span>QR Queue</span>';
-  button.title = 'Lihat PDF yang masuk dari QR Internet';
+  button.title = 'Lihat dan hapus PDF yang masuk dari QR Internet';
   qrBtn.parentElement.insertBefore(button, qrBtn.nextSibling);
 
   const modal = document.createElement('div');
@@ -102,8 +102,8 @@ function addRemoteQueueUi() {
         statusEl.textContent = 'Antrean kosong.';
         return;
       }
-      statusEl.textContent = `${jobs.length} PDF masuk. PDF baru akan dibuka otomatis.`;
-      listEl.innerHTML = jobs.map(job => `<div style="display:flex;align-items:center;gap:14px;padding:14px;border:1px solid #e3ebea;border-radius:12px;margin-bottom:10px;background:#fbfdfd"><div style="flex:1;min-width:0"><b style="display:block;color:#203335;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(job.filename || job.fileName || 'PDF')}</b><span style="font-size:12px;color:#738284">${escapeHtml(job.jobId || '')} · ${Number(job.size || 0).toLocaleString('id-ID')} bytes · ${escapeHtml(job.status || 'uploaded')}</span></div><span style="font-size:12px;color:#1f6f62;font-weight:700">Otomatis dibuka</span></div>`).join('');
+      statusEl.textContent = `${jobs.length} PDF masuk.`;
+      listEl.innerHTML = jobs.map(job => `<div data-job-id="${escapeHtml(job.jobId || '')}" style="display:flex;align-items:center;gap:14px;padding:14px;border:1px solid #e3ebea;border-radius:12px;margin-bottom:10px;background:#fbfdfd"><div style="flex:1;min-width:0"><b style="display:block;color:#203335;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(job.filename || job.fileName || 'PDF')}</b><span style="font-size:12px;color:#738284">${escapeHtml(job.jobId || '')} · ${Number(job.size || 0).toLocaleString('id-ID')} bytes · ${escapeHtml(job.status || 'uploaded')}</span></div><button type="button" data-qr-delete="${escapeHtml(job.jobId || '')}" style="border:1px solid #e0b8b8;background:#fff7f7;color:#a33b3b;border-radius:9px;padding:8px 12px;cursor:pointer;font-weight:700">Hapus</button></div>`).join('');
     } catch (err) {
       listEl.innerHTML = '<div style="padding:24px;color:#9b3838">' + escapeHtml(err?.message || String(err)) + '</div>';
       statusEl.textContent = 'QR Queue belum terhubung.';
@@ -114,12 +114,30 @@ function addRemoteQueueUi() {
     }
   }
 
+  async function deleteJob(jobId, buttonEl) {
+    const safeJobId = String(jobId || '').trim();
+    if (!safeJobId) return;
+    if (!window.confirm(`Hapus job ${safeJobId} dari QR Queue?`)) return;
+    if (buttonEl) { buttonEl.disabled = true; buttonEl.textContent = 'Menghapus…'; }
+    try {
+      await ipcRenderer.invoke('remote-queue-delete', safeJobId);
+      await loadQueue();
+    } catch (err) {
+      if (buttonEl) { buttonEl.disabled = false; buttonEl.textContent = 'Hapus'; }
+      statusEl.textContent = err?.message || String(err);
+    }
+  }
+
   function escapeHtml(value) { return String(value ?? '').replace(/[&<>\'\"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'}[ch])); }
 
   button.onclick = async () => { modal.style.display = 'flex'; await loadQueue(); };
   modal.querySelector('#remoteQueueClose').onclick = () => { modal.style.display = 'none'; };
   modal.querySelector('#remoteQueueRefresh').onclick = loadQueue;
   modal.querySelector('#remoteQueueSettings').onclick = async () => { const saved = await configure(); if (saved) await loadQueue(); };
+  listEl.addEventListener('click', async e => {
+    const deleteButton = e.target.closest('[data-qr-delete]');
+    if (deleteButton) await deleteJob(deleteButton.getAttribute('data-qr-delete'), deleteButton);
+  });
   modal.addEventListener('click', e => { if (e.target === modal) modal.style.display = 'none'; });
 }
 
@@ -145,6 +163,7 @@ contextBridge.exposeInMainWorld('revo', {
   remoteQueueGetConfig: () => ipcRenderer.invoke('remote-queue-get-config'),
   remoteQueueSaveConfig: (config) => ipcRenderer.invoke('remote-queue-save-config', config),
   remoteQueueList: () => ipcRenderer.invoke('remote-queue-list'),
+  remoteQueueDelete: (jobId) => ipcRenderer.invoke('remote-queue-delete', jobId),
   remoteQueueOpen: (jobId) => openRemoteJob(jobId),
   onQrPdfReceived: (callback) => { qrPdfCallbacks.add(callback); return () => qrPdfCallbacks.delete(callback); }
 });
