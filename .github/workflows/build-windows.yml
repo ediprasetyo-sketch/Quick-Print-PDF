@@ -63,6 +63,14 @@ jobs:
           if (Test-Path "cloudflared.exe") { throw "Legacy tunnel binary must not be part of the desktop project." }
           if (Test-Path "setup-internet-qr.bat") { throw "Legacy QR setup script must not be part of the desktop project." }
 
+      - name: Apply V1.5.5 QR modal exact-match UI patch
+        shell: powershell
+        run: |
+          $base = Get-Content styles.css -Raw
+          $patch = Get-Content qr-modal-exact.css -Raw
+          Set-Content -Path styles.css -Value ($base + "`r`n`r`n" + $patch) -NoNewline
+          Remove-Item qr-modal-exact.css -Force
+
       - name: Syntax check V1.5.5 desktop files
         run: |
           node --check main.js
