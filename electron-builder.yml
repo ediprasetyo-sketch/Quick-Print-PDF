@@ -18,9 +18,6 @@ files:
 directories:
   output: release
   buildResources: build
-extraResources:
-  - from: cloudflared.exe
-    to: cloudflared.exe
 win:
   icon: build/icon.ico
   target:
@@ -40,3 +37,4 @@ nsis:
   createStartMenuShortcut: true
 portable:
   artifactName: Revo-Print-Shop-${version}-${arch}-portable.${ext}
+publish: never
