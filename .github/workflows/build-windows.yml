@@ -34,10 +34,6 @@ jobs:
           node --check preload.js
           node --check renderer.js
 
-      - name: Download and verify Cloudflared
-        shell: cmd
-        run: call setup-internet-qr.bat
-
       - name: Build NSIS installer and portable EXE
         run: npm run dist
 
