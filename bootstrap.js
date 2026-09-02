@@ -107,11 +107,23 @@ async function getJobsByStatus(status) {
   return jobs.map(job => normalizeJob(job, safeStatus)).filter(job => job.jobId);
 }
 
+async function getQueueJobs() {
+  const [uploaded, processing] = await Promise.all([
+    getJobsByStatus('uploaded'),
+    getJobsByStatus('processing')
+  ]);
+  const received = new Set(readReceivedJobs());
+  const ownedProcessing = processing.filter(job => received.has(String(job.jobId)));
+  const merged = new Map();
+  for (const job of [...uploaded, ...ownedProcessing]) merged.set(String(job.jobId), job);
+  return [...merged.values()].sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
+}
+
 async function getUploadedJobs() {
   return getJobsByStatus('uploaded');
 }
 
-ipcMain.handle('remote-queue-list', async () => getUploadedJobs());
+ipcMain.handle('remote-queue-list', async () => getQueueJobs());
 
 ipcMain.handle('remote-queue-delete', async (_event, jobId) => {
   const safeJobId = String(jobId || '').trim();
