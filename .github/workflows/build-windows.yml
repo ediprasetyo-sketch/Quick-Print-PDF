@@ -28,16 +28,22 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Verify V1.4.1 desktop has no Cloudflared
+      - name: Verify V1.5.3 desktop has no legacy QR tunnel
         shell: powershell
         run: |
+          $files = @('main.js','bootstrap.js','preload.js','renderer.js','package.json','electron-builder.yml')
+          foreach ($file in $files) {
+            $text = Get-Content $file -Raw
+            if ($text -match 'cloudflared|trycloudflare|startPublicTunnel|findCloudflared|uploadServer|uploadToken|Busboy') {
+              throw "$file still contains legacy desktop QR tunnel/upload code."
+            }
+          }
           if (Test-Path "cloudflared.exe") { throw "cloudflared.exe must not be part of the desktop project." }
           if (Test-Path "setup-internet-qr.bat") { throw "setup-internet-qr.bat must not be part of the desktop project." }
-          $builder = Get-Content "electron-builder.yml" -Raw
-          if ($builder -match "cloudflared") { throw "electron-builder.yml still references Cloudflared." }
 
-      - name: Syntax check V1.4 QR Receive files
+      - name: Syntax check V1.5.3 desktop files
         run: |
+          node --check main.js
           node --check bootstrap.js
           node --check preload.js
           node --check renderer.js
