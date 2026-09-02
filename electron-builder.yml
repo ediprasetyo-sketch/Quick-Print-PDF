@@ -37,4 +37,3 @@ nsis:
   createStartMenuShortcut: true
 portable:
   artifactName: Revo-Print-Shop-${version}-${arch}-portable.${ext}
-publish: never
