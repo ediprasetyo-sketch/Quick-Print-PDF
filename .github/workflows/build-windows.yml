@@ -26,22 +26,41 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm install
+        run: |
+          npm install --package-lock-only --ignore-scripts
+          npm ci --ignore-scripts
 
-      - name: Verify V1.5.3 desktop has no legacy QR tunnel
+      - name: Verify V1.5.5 version
         shell: powershell
         run: |
-          $files = @('main.js','bootstrap.js','preload.js','renderer.js','package.json','electron-builder.yml')
+          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+          if ($pkg.version -ne '1.5.5') {
+            throw "Expected desktop version 1.5.5, found $($pkg.version)."
+          }
+
+      - name: Verify V1.5.5 desktop is tunnel-free
+        shell: powershell
+        run: |
+          $files = Get-ChildItem -Path . -Recurse -File |
+            Where-Object {
+              $_.FullName -notmatch '\\node_modules\\|\\.git\\|\\release\\' -and
+              $_.Extension -in '.js','.json','.yml','.yaml','.bat','.cmd','.ps1'
+            }
+
+          $patterns = 'cloudflared','trycloudflare','startPublicTunnel','findCloudflared','uploadServer','uploadToken','Busboy'
           foreach ($file in $files) {
-            $text = Get-Content $file -Raw
-            if ($text -match 'cloudflared|trycloudflare|startPublicTunnel|findCloudflared|uploadServer|uploadToken|Busboy') {
-              throw "$file still contains legacy desktop QR tunnel/upload code."
+            $text = Get-Content $file.FullName -Raw
+            foreach ($pattern in $patterns) {
+              if ($text -match [regex]::Escape($pattern)) {
+                throw "$($file.FullName) contains forbidden legacy QR tunnel/upload token: $pattern"
+              }
             }
           }
+
           if (Test-Path "cloudflared.exe") { throw "cloudflared.exe must not be part of the desktop project." }
           if (Test-Path "setup-internet-qr.bat") { throw "setup-internet-qr.bat must not be part of the desktop project." }
 
-      - name: Syntax check V1.5.3 desktop files
+      - name: Syntax check V1.5.5 desktop files
         run: |
           node --check main.js
           node --check bootstrap.js
@@ -51,10 +70,18 @@ jobs:
       - name: Build NSIS installer and portable EXE
         run: npm run dist
 
+      - name: Verify Windows artifacts
+        shell: powershell
+        run: |
+          $nsis = Get-ChildItem release -Filter 'Revo-Print-Shop-1.5.5-x64.exe' -File -ErrorAction SilentlyContinue
+          $portable = Get-ChildItem release -Filter 'Revo-Print-Shop-1.5.5-x64-portable.exe' -File -ErrorAction SilentlyContinue
+          if (-not $nsis) { throw 'NSIS installer artifact for V1.5.5 was not produced.' }
+          if (-not $portable) { throw 'Portable artifact for V1.5.5 was not produced.' }
+
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: revo-print-shop-windows
+          name: revo-print-shop-windows-v1.5.5
           path: release/*
           if-no-files-found: error
           retention-days: 14
