@@ -34,19 +34,50 @@ function writeConfig(input) {
   return { baseUrl, hasApiKey: Boolean(apiKey) };
 }
 
-function readReceivedJobs() {
+function readReceivedRecords() {
   try {
     if (!fs.existsSync(receivedJobsPath())) return [];
     const value = JSON.parse(fs.readFileSync(receivedJobsPath(), 'utf8'));
-    return Array.isArray(value) ? value.filter(Boolean).map(String).slice(-500) : [];
+    if (!Array.isArray(value)) return [];
+    return value.map(item => {
+      if (typeof item === 'string') return { jobId: item };
+      if (!item || typeof item !== 'object') return null;
+      return {
+        jobId: item.jobId || item.id || '',
+        filename: item.filename || item.fileName || 'PDF',
+        size: Number(item.size || 0),
+        createdAt: item.createdAt || item.receivedAt || null,
+        receivedAt: item.receivedAt || null
+      };
+    }).filter(item => item?.jobId).slice(-500);
   } catch { return []; }
 }
 
-function markReceived(jobId) {
-  const ids = readReceivedJobs();
-  if (!ids.includes(jobId)) ids.push(jobId);
+function readReceivedJobs() {
+  return readReceivedRecords().map(item => String(item.jobId));
+}
+
+function markReceived(job) {
+  const jobId = String(job?.jobId || job?.id || '').trim();
+  if (!jobId) return;
+  const records = readReceivedRecords().filter(item => String(item.jobId) !== jobId);
+  records.push({
+    jobId,
+    filename: job?.filename || job?.fileName || 'PDF',
+    size: Number(job?.size || 0),
+    createdAt: job?.createdAt || job?.receivedAt || new Date().toISOString(),
+    receivedAt: new Date().toISOString()
+  });
   fs.mkdirSync(path.dirname(receivedJobsPath()), { recursive: true });
-  fs.writeFileSync(receivedJobsPath(), JSON.stringify(ids.slice(-500), null, 2), 'utf8');
+  fs.writeFileSync(receivedJobsPath(), JSON.stringify(records.slice(-500), null, 2), 'utf8');
+}
+
+function forgetReceived(jobId) {
+  const safeJobId = String(jobId || '').trim();
+  if (!safeJobId) return;
+  const records = readReceivedRecords().filter(item => String(item.jobId) !== safeJobId);
+  fs.mkdirSync(path.dirname(receivedJobsPath()), { recursive: true });
+  fs.writeFileSync(receivedJobsPath(), JSON.stringify(records.slice(-500), null, 2), 'utf8');
 }
 
 function normalizeJob(job, fallbackStatus = 'uploaded') {
@@ -112,10 +143,24 @@ async function getQueueJobs() {
     getJobsByStatus('uploaded'),
     getJobsByStatus('processing')
   ]);
-  const received = new Set(readReceivedJobs());
-  const ownedProcessing = processing.filter(job => received.has(String(job.jobId)));
+  const receivedRecords = readReceivedRecords();
+  const received = new Map(receivedRecords.map(record => [String(record.jobId), record]));
   const merged = new Map();
-  for (const job of [...uploaded, ...ownedProcessing]) merged.set(String(job.jobId), job);
+
+  for (const job of uploaded) merged.set(String(job.jobId), job);
+  for (const job of processing) {
+    if (received.has(String(job.jobId))) merged.set(String(job.jobId), job);
+  }
+
+  // V1.5.2: once a job has been received by this desktop, keep it visible
+  // until the user explicitly deletes it, even if the server later changes
+  // the status away from processing.
+  for (const record of receivedRecords) {
+    const key = String(record.jobId);
+    if (merged.has(key)) continue;
+    merged.set(key, normalizeJob({ ...record, jobId: key, status: 'processing' }, 'processing'));
+  }
+
   return [...merged.values()].sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
 }
 
@@ -128,10 +173,20 @@ ipcMain.handle('remote-queue-list', async () => getQueueJobs());
 ipcMain.handle('remote-queue-delete', async (_event, jobId) => {
   const safeJobId = String(jobId || '').trim();
   if (!/^RP-[A-Za-z0-9_-]+$/.test(safeJobId)) throw new Error('Job ID QR tidak valid.');
-  const response = await qrRequest(`/api/jobs/${encodeURIComponent(safeJobId)}`, { method: 'DELETE' });
-  let body = null;
-  try { body = await response.json(); } catch {}
-  return { ok: true, jobId: safeJobId, ...(body && typeof body === 'object' ? body : {}) };
+  try {
+    const response = await qrRequest(`/api/jobs/${encodeURIComponent(safeJobId)}`, { method: 'DELETE' });
+    let body = null;
+    try { body = await response.json(); } catch {}
+    forgetReceived(safeJobId);
+    return { ok: true, jobId: safeJobId, ...(body && typeof body === 'object' ? body : {}) };
+  } catch (err) {
+    // A job already gone from NAS should also be removed from the local queue.
+    if (err?.statusCode === 404) {
+      forgetReceived(safeJobId);
+      return { ok: true, jobId: safeJobId, alreadyDeleted: true };
+    }
+    throw err;
+  }
 });
 
 async function claimRemoteJob(jobId) {
@@ -184,7 +239,7 @@ async function receiveClaimedJob(job) {
   try {
     file = await downloadRemoteJob(jobId, job.filename);
     if (!sendReceivedFile(file)) throw new Error('Jendela Revo Print Shop belum tersedia.');
-    markReceived(jobId);
+    markReceived(job);
     return true;
   } catch (err) {
     if (file?.path) { try { if (fs.existsSync(file.path)) fs.unlinkSync(file.path); } catch {} }
