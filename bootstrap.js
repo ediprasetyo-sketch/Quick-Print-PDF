@@ -54,6 +54,7 @@ async function qrRequest(pathname, options = {}) {
   const response = await fetch(url, {
     method: options.method || 'GET',
     headers: { 'X-API-Key': cfg.apiKey, ...(options.headers || {}) },
+    body: options.body,
     signal: AbortSignal.timeout(15000)
   });
   const contentType = response.headers.get('content-type') || '';
@@ -105,6 +106,21 @@ ipcMain.handle('remote-queue-delete', async (_event, jobId) => {
   return { ok: true, jobId: safeJobId, ...(body && typeof body === 'object' ? body : {}) };
 });
 
+async function claimRemoteJob(jobId) {
+  const safeJobId = String(jobId || '').trim();
+  if (!/^RP-[A-Za-z0-9_-]+$/.test(safeJobId)) throw new Error('Job ID QR tidak valid.');
+  const response = await qrRequest(`/api/jobs/${encodeURIComponent(safeJobId)}/claim`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ workerId: `revo-print-shop-${process.pid}` })
+  });
+  let body = null;
+  try { body = await response.json(); } catch {}
+  return body && typeof body === 'object' ? body : { ok: true, jobId: safeJobId, status: 'processing' };
+}
+
+ipcMain.handle('remote-queue-claim', async (_event, jobId) => claimRemoteJob(jobId));
+
 async function downloadRemoteJob(jobId) {
   const safeJobId = String(jobId || '').trim();
   if (!/^[A-Za-z0-9_-]+$/.test(safeJobId)) throw new Error('Job ID QR tidak valid.');
@@ -140,8 +156,11 @@ async function autoReceiveQrJobs() {
     for (const job of jobs.sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || ''))) ) {
       const jobId = String(job.jobId || '').trim();
       if (!jobId || received.has(jobId)) continue;
+      let file = null;
       try {
-        const file = await downloadRemoteJob(jobId);
+        file = await downloadRemoteJob(jobId);
+        const claim = await claimRemoteJob(jobId);
+        file.lifecycleStatus = String(claim?.status || 'processing');
         markReceived(jobId);
         received.add(jobId);
         for (const win of BrowserWindow.getAllWindows()) {
@@ -149,6 +168,7 @@ async function autoReceiveQrJobs() {
         }
         break;
       } catch (err) {
+        if (file?.path) { try { if (fs.existsSync(file.path)) fs.unlinkSync(file.path); } catch {} }
         console.error('[QR Queue] Auto receive failed:', jobId, err?.message || err);
       }
     }
