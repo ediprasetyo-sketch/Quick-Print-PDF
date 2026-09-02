@@ -1,7 +1,7 @@
 {
   "name": "revo-print-shop",
-  "version": "1.0.21",
-  "description": "Revo Print Shop V1.5.1 — keep received QR jobs in queue until deleted.",
+  "version": "1.0.22",
+  "description": "Revo Print Shop V1.5.2 — persist received QR jobs until manual delete.",
   "main": "bootstrap.js",
   "author": "Revo Print Shop",
   "license": "MIT",
