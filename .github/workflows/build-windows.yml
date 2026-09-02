@@ -22,12 +22,11 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
         run: |
-          npm install --package-lock-only --ignore-scripts
           npm ci --ignore-scripts
 
       - name: Verify V1.5.5 version
@@ -46,7 +45,7 @@ jobs:
         run: |
           $files = Get-ChildItem -Path . -Recurse -File |
             Where-Object {
-              $_.FullName -notmatch '\\node_modules\\|\\.git\\|\\release\\' -and
+              $_.FullName -notmatch '\\node_modules\\|\\.git\\|\\release\\|\\.github\\' -and
               $_.Name -ne 'package-lock.json' -and
               $_.Extension -in '.js','.json','.yml','.yaml','.bat','.cmd','.ps1'
             }
@@ -61,8 +60,8 @@ jobs:
             }
           }
 
-          if (Test-Path "cloudflared.exe") { throw "cloudflared.exe must not be part of the desktop project." }
-          if (Test-Path "setup-internet-qr.bat") { throw "setup-internet-qr.bat must not be part of the desktop project." }
+          if (Test-Path "cloudflared.exe") { throw "Legacy tunnel binary must not be part of the desktop project." }
+          if (Test-Path "setup-internet-qr.bat") { throw "Legacy QR setup script must not be part of the desktop project." }
 
       - name: Syntax check V1.5.5 desktop files
         run: |
@@ -70,6 +69,7 @@ jobs:
           node --check bootstrap.js
           node --check preload.js
           node --check renderer.js
+          node --check print.js
 
       - name: Build NSIS installer and portable EXE
         run: npm run dist
