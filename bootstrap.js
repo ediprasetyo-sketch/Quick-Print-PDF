@@ -184,7 +184,8 @@ async function getQueueJobs() {
   for (const record of receivedRecords) {
     const key = String(record.jobId);
     if (merged.has(key)) continue;
-    merged.set(key, normalizeJob({ ...record, jobId: key, status: 'processing' }, 'processing'));
+    const localStatus = ['printed', 'error'].includes(String(record.status || '').toLowerCase()) ? String(record.status).toLowerCase() : 'processing';
+    merged.set(key, normalizeJob({ ...record, jobId: key, status: localStatus }, localStatus));
   }
 
   return [...merged.values()].sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
