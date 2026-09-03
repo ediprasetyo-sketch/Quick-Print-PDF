@@ -1,110 +1,16 @@
-name: Patch QR lifecycle V1.5.6
+name: Validate QR lifecycle patch
 on:
   push:
     branches: [fix/qr-lifecycle-v1.5.6]
 permissions:
   contents: write
 jobs:
-  patch:
+  validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with: {fetch-depth: 0}
-      - name: Apply lifecycle patch
-        shell: bash
+      - name: Validate
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import json
-
-          p=Path('bootstrap.js'); s=p.read_text(encoding='utf-8')
-          if '// QR_LIFECYCLE_V1_5_6' not in s:
-            s=s.replace("        receivedAt: item.receivedAt || null\n      };", "        receivedAt: item.receivedAt || null,\n        status: item.status || 'processing',\n        message: item.message || '',\n        updatedAt: item.updatedAt || item.receivedAt || item.createdAt || null,\n        syncPending: Boolean(item.syncPending)\n      };", 1)
-            s=s.replace("    receivedAt: new Date().toISOString()\n  });", "    receivedAt: new Date().toISOString(),\n    status: 'processing',\n    message: 'PDF diterima dan menunggu proses cetak.',\n    updatedAt: new Date().toISOString(),\n    syncPending: false\n  });", 1)
-            marker="\nfunction forgetReceived(jobId) {"
-            helper="""
-function updateReceivedRecord(jobId, patch = {}) {
-  const safeJobId = String(jobId || '').trim();
-  if (!safeJobId) return null;
-  const records = readReceivedRecords();
-  const index = records.findIndex(item => String(item.jobId) === safeJobId);
-  const current = index >= 0 ? records[index] : { jobId: safeJobId };
-  const next = { ...current, ...patch, jobId: safeJobId, updatedAt: patch.updatedAt || new Date().toISOString() };
-  if (index >= 0) records[index] = next; else records.push(next);
-  fs.mkdirSync(path.dirname(receivedJobsPath()), { recursive: true });
-  fs.writeFileSync(receivedJobsPath(), JSON.stringify(records.slice(-500), null, 2), 'utf8');
-  return next;
-}
-"""
-            if marker not in s: raise SystemExit('updateReceivedRecord marker missing')
-            s=s.replace(marker, helper+marker, 1)
-            marker="\nipcMain.handle('remote-queue-list', async () => getQueueJobs());"
-            helper="""
-async function setRemoteJobStatus(jobId, status, message = '') {
-  const safeJobId = String(jobId || '').trim();
-  const safeStatus = String(status || '').trim().toLowerCase();
-  if (!/^RP-[A-Za-z0-9_-]+$/.test(safeJobId)) throw new Error('Job ID QR tidak valid.');
-  if (!['uploaded','processing','printed','error'].includes(safeStatus)) throw new Error('Status QR Queue tidak valid.');
-  const body = JSON.stringify({ status: safeStatus, message: String(message || '').slice(0, 500) });
-  try {
-    const response = await qrRequest(`/api/jobs/${encodeURIComponent(safeJobId)}/status`, { method:'POST', headers:{'Content-Type':'application/json'}, body });
-    let data=null; try { data=await response.json(); } catch {}
-    updateReceivedRecord(safeJobId, { status:safeStatus, message:String(message || '').slice(0,500), syncPending:false });
-    return { ok:true, jobId:safeJobId, status:safeStatus, ...(data && typeof data === 'object' ? data : {}) };
-  } catch (err) {
-    updateReceivedRecord(safeJobId, { status:safeStatus, message:String(message || '').slice(0,500), syncPending:true });
-    return { ok:false, jobId:safeJobId, status:safeStatus, syncPending:true, error:err?.message || String(err) };
-  }
-}
-ipcMain.handle('remote-queue-status', async (_event, input) => setRemoteJobStatus(input?.jobId, input?.status, input?.message));
-"""
-            if marker not in s: raise SystemExit('queue list marker missing')
-            s=s.replace(marker, helper+marker, 1)
-            old="""  for (const job of processing) {\n    if (received.has(String(job.jobId))) merged.set(String(job.jobId), job);\n  }"""
-            new="""  for (const job of processing) {\n    const key = String(job.jobId);\n    const local = received.get(key);\n    if (!local) continue;\n    const terminal = ['printed','error'].includes(String(local.status || '').toLowerCase());\n    merged.set(key, terminal ? normalizeJob({ ...job, ...local, jobId:key }, local.status) : job);\n  }"""
-            if old not in s: raise SystemExit('processing merge block missing')
-            s=s.replace(old,new,1)
-            marker="\nasync function autoReceiveQrJobs() {"
-            helper="""
-async function syncPendingTerminalStatuses() {
-  const records = readReceivedRecords().filter(item => item?.syncPending && ['printed','error'].includes(String(item.status || '').toLowerCase()));
-  for (const record of records.slice(0,10)) {
-    try { await setRemoteJobStatus(record.jobId, record.status, record.message || ''); }
-    catch (err) { console.error('[QR Queue] Terminal status sync failed:', record.jobId, err?.message || err); }
-  }
-}
-"""
-            if marker not in s: raise SystemExit('autoReceive marker missing')
-            s=s.replace(marker,helper+marker,1)
-            s=s.replace("  try {\n    const recovered = await recoverOwnProcessingJobs();", "  try {\n    await syncPendingTerminalStatuses();\n    const recovered = await recoverOwnProcessingJobs();", 1)
-            s += "\n// QR_LIFECYCLE_V1_5_6\n"
-            p.write_text(s,encoding='utf-8')
-
-          p=Path('preload.js'); s=p.read_text(encoding='utf-8')
-          if '// QR_LIFECYCLE_V1_5_6_PRELOAD' not in s:
-            needle="  remoteQueueDelete: (jobId) => ipcRenderer.invoke('remote-queue-delete', jobId),"
-            repl=needle+"\n  // QR_LIFECYCLE_V1_5_6_PRELOAD\n  remoteQueueStatus: (jobId, status, message = '') => ipcRenderer.invoke('remote-queue-status', { jobId, status, message }),"
-            if needle not in s: raise SystemExit('preload insertion point missing')
-            p.write_text(s.replace(needle,repl,1),encoding='utf-8')
-
-          p=Path('renderer.js'); s=p.read_text(encoding='utf-8')
-          if 'QR_LIFECYCLE_V1_5_6_RENDERER' not in s:
-            old="""    const result=await qzPrintPdf(payload);\n    toast(result.message||t('printSuccess'));$('statusText').textContent=t('sent');"""
-            new="""    const result=await qzPrintPdf(payload);\n    if(currentFileMeta?.jobId && /^RP-[A-Za-z0-9_-]+$/.test(String(currentFileMeta.jobId))){\n      const sync=await window.revo.remoteQueueStatus(currentFileMeta.jobId,'printed',`Cetak berhasil dikirim ke printer ${selectedPrinter()}.`);\n      if(!sync?.ok) toast('Cetak berhasil; status QR menunggu sinkronisasi.',false);\n    }\n    toast(result.message||t('printSuccess'));$('statusText').textContent=t('sent');"""
-            if old not in s: raise SystemExit('renderer success block missing')
-            s=s.replace(old,new,1)
-            old="""  }catch(err){toast(t('printFailed')+(err?.message||String(err)),true);$('statusText').textContent=t('readyStatus')}"""
-            new="""  }catch(err){\n    if(currentFileMeta?.jobId && /^RP-[A-Za-z0-9_-]+$/.test(String(currentFileMeta.jobId))){\n      const sync=await window.revo.remoteQueueStatus(currentFileMeta.jobId,'error',`Cetak gagal: ${err?.message||String(err)}`);\n      if(!sync?.ok) console.warn('QR Queue error status pending:',sync?.error);\n    }\n    toast(t('printFailed')+(err?.message||String(err)),true);$('statusText').textContent=t('readyStatus')\n  }"""
-            if old not in s: raise SystemExit('renderer error block missing')
-            s=s.replace(old,new,1)
-            s += "\n// QR_LIFECYCLE_V1_5_6_RENDERER\n"
-            p.write_text(s,encoding='utf-8')
-
-          p=Path('package.json'); d=json.loads(p.read_text(encoding='utf-8')); d['version']='1.5.6'; d['description']='Revo Print Shop V1.5.6 — QR Queue lifecycle synchronization.'; p.write_text(json.dumps(d,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
-          PY
-          git rm -f .github/workflows/patch-qr-lifecycle-v1.5.6.yml
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add bootstrap.js preload.js renderer.js package.json
-          git commit -m "V1.5.6: fix QR job status lifecycle"
-          git push
+          node --check bootstrap.js
+          node --check preload.js
+          node --check renderer.js
