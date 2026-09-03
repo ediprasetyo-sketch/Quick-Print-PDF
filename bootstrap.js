@@ -47,7 +47,11 @@ function readReceivedRecords() {
         filename: item.filename || item.fileName || 'PDF',
         size: Number(item.size || 0),
         createdAt: item.createdAt || item.receivedAt || null,
-        receivedAt: item.receivedAt || null
+        receivedAt: item.receivedAt || null,
+        status: item.status || 'processing',
+        message: item.message || '',
+        updatedAt: item.updatedAt || item.receivedAt || item.createdAt || null,
+        syncPending: Boolean(item.syncPending)
       };
     }).filter(item => item?.jobId).slice(-500);
   } catch { return []; }
@@ -66,10 +70,28 @@ function markReceived(job) {
     filename: job?.filename || job?.fileName || 'PDF',
     size: Number(job?.size || 0),
     createdAt: job?.createdAt || job?.receivedAt || new Date().toISOString(),
-    receivedAt: new Date().toISOString()
+    receivedAt: new Date().toISOString(),
+    status: 'processing',
+    message: 'PDF diterima dan menunggu proses cetak.',
+    updatedAt: new Date().toISOString(),
+    syncPending: false
   });
   fs.mkdirSync(path.dirname(receivedJobsPath()), { recursive: true });
   fs.writeFileSync(receivedJobsPath(), JSON.stringify(records.slice(-500), null, 2), 'utf8');
+}
+
+
+function updateReceivedRecord(jobId, patch = {}) {
+  const safeJobId = String(jobId || '').trim();
+  if (!safeJobId) return null;
+  const records = readReceivedRecords();
+  const index = records.findIndex(item => String(item.jobId) === safeJobId);
+  const current = index >= 0 ? records[index] : { jobId: safeJobId };
+  const next = { ...current, ...patch, jobId: safeJobId, updatedAt: patch.updatedAt || new Date().toISOString() };
+  if (index >= 0) records[index] = next; else records.push(next);
+  fs.mkdirSync(path.dirname(receivedJobsPath()), { recursive: true });
+  fs.writeFileSync(receivedJobsPath(), JSON.stringify(records.slice(-500), null, 2), 'utf8');
+  return next;
 }
 
 function forgetReceived(jobId) {
@@ -149,7 +171,11 @@ async function getQueueJobs() {
 
   for (const job of uploaded) merged.set(String(job.jobId), job);
   for (const job of processing) {
-    if (received.has(String(job.jobId))) merged.set(String(job.jobId), job);
+    const key = String(job.jobId);
+    const local = received.get(key);
+    if (!local) continue;
+    const terminal = ['printed','error'].includes(String(local.status || '').toLowerCase());
+    merged.set(key, terminal ? normalizeJob({ ...job, ...local, jobId:key }, local.status) : job);
   }
 
   // V1.5.2: once a job has been received by this desktop, keep it visible
@@ -167,6 +193,25 @@ async function getQueueJobs() {
 async function getUploadedJobs() {
   return getJobsByStatus('uploaded');
 }
+
+
+async function setRemoteJobStatus(jobId, status, message = '') {
+  const safeJobId = String(jobId || '').trim();
+  const safeStatus = String(status || '').trim().toLowerCase();
+  if (!/^RP-[A-Za-z0-9_-]+$/.test(safeJobId)) throw new Error('Job ID QR tidak valid.');
+  if (!['uploaded','processing','printed','error'].includes(safeStatus)) throw new Error('Status QR Queue tidak valid.');
+  const payload = JSON.stringify({ status: safeStatus, message: String(message || '').slice(0, 500) });
+  try {
+    const response = await qrRequest(`/api/jobs/${encodeURIComponent(safeJobId)}/status`, { method:'POST', headers:{'Content-Type':'application/json'}, body:payload });
+    let body = null; try { body = await response.json(); } catch {}
+    updateReceivedRecord(safeJobId, { status:safeStatus, message:String(message || '').slice(0,500), syncPending:false });
+    return { ok:true, jobId:safeJobId, status:safeStatus, ...(body && typeof body === 'object' ? body : {}) };
+  } catch (err) {
+    updateReceivedRecord(safeJobId, { status:safeStatus, message:String(message || '').slice(0,500), syncPending:true });
+    return { ok:false, jobId:safeJobId, status:safeStatus, syncPending:true, error:err?.message || String(err) };
+  }
+}
+ipcMain.handle('remote-queue-status', async (_event, input) => setRemoteJobStatus(input?.jobId, input?.status, input?.message));
 
 ipcMain.handle('remote-queue-list', async () => getQueueJobs());
 
@@ -282,10 +327,20 @@ async function recoverOwnProcessingJobs() {
   return false;
 }
 
+
+async function syncPendingTerminalStatuses() {
+  const records = readReceivedRecords().filter(item => item?.syncPending && ['printed','error'].includes(String(item.status || '').toLowerCase()));
+  for (const record of records.slice(0,10)) {
+    try { await setRemoteJobStatus(record.jobId, record.status, record.message || ''); }
+    catch (err) { console.error('[QR Queue] Terminal status sync failed:', record.jobId, err?.message || err); }
+  }
+}
+
 async function autoReceiveQrJobs() {
   if (qrPollBusy) return;
   qrPollBusy = true;
   try {
+    await syncPendingTerminalStatuses();
     const recovered = await recoverOwnProcessingJobs();
     if (recovered) return;
 
@@ -315,3 +370,5 @@ function startQrQueueWatcher() {
 }
 
 app.whenReady().then(startQrQueueWatcher);
+
+// QR_LIFECYCLE_V1_5_6
