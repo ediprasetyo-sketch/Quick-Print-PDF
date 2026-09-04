@@ -1,7 +1,7 @@
 {
   "name": "revo-print-shop",
-  "version": "1.5.5",
-  "description": "Revo Print Shop V1.5.5 — NAS-hosted QR Upload with no desktop tunnel.",
+  "version": "1.5.6",
+  "description": "Revo Print Shop V1.5.6 — QR Queue lifecycle synchronization.",
   "main": "bootstrap.js",
   "author": "Revo Print Shop",
   "license": "MIT",
