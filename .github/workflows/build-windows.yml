@@ -29,18 +29,18 @@ jobs:
         run: |
           npm ci --ignore-scripts
 
-      - name: Verify V1.5.5 version
+      - name: Verify V1.5.6 version
         shell: powershell
         run: |
           $pkg = Get-Content package.json -Raw | ConvertFrom-Json
-          if ($pkg.version -ne '1.5.5') {
-            throw "Expected desktop version 1.5.5, found $($pkg.version)."
+          if ($pkg.version -ne '1.5.6') {
+            throw "Expected desktop version 1.5.6, found $($pkg.version)."
           }
           if ($pkg.dependencies.PSObject.Properties.Name -contains 'busboy') {
             throw 'busboy must not be a direct desktop dependency.'
           }
 
-      - name: Verify V1.5.5 desktop is tunnel-free
+      - name: Verify V1.5.6 desktop is tunnel-free
         shell: powershell
         run: |
           $files = Get-ChildItem -Path . -Recurse -File |
@@ -63,7 +63,7 @@ jobs:
           if (Test-Path "cloudflared.exe") { throw "Legacy tunnel binary must not be part of the desktop project." }
           if (Test-Path "setup-internet-qr.bat") { throw "Legacy QR setup script must not be part of the desktop project." }
 
-      - name: Apply V1.5.5 QR modal exact-match UI patch
+      - name: Apply V1.5.6 QR modal exact-match UI patch
         shell: powershell
         run: |
           $base = Get-Content styles.css -Raw
@@ -71,7 +71,7 @@ jobs:
           Set-Content -Path styles.css -Value ($base + "`r`n`r`n" + $patch) -NoNewline
           Remove-Item qr-modal-exact.css -Force
 
-      - name: Syntax check V1.5.5 desktop files
+      - name: Syntax check V1.5.6 desktop files
         run: |
           node --check main.js
           node --check bootstrap.js
@@ -85,15 +85,15 @@ jobs:
       - name: Verify Windows artifacts
         shell: powershell
         run: |
-          $nsis = Get-ChildItem release -Filter 'Revo-Print-Shop-1.5.5-x64.exe' -File -ErrorAction SilentlyContinue
-          $portable = Get-ChildItem release -Filter 'Revo-Print-Shop-1.5.5-x64-portable.exe' -File -ErrorAction SilentlyContinue
-          if (-not $nsis) { throw 'NSIS installer artifact for V1.5.5 was not produced.' }
-          if (-not $portable) { throw 'Portable artifact for V1.5.5 was not produced.' }
+          $nsis = Get-ChildItem release -Filter 'Revo-Print-Shop-1.5.6-x64.exe' -File -ErrorAction SilentlyContinue
+          $portable = Get-ChildItem release -Filter 'Revo-Print-Shop-1.5.6-x64-portable.exe' -File -ErrorAction SilentlyContinue
+          if (-not $nsis) { throw 'NSIS installer artifact for V1.5.6 was not produced.' }
+          if (-not $portable) { throw 'Portable artifact for V1.5.6 was not produced.' }
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: revo-print-shop-windows-v1.5.5
+          name: revo-print-shop-windows-v1.5.6
           path: release/*
           if-no-files-found: error
           retention-days: 14
