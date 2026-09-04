@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - fix/qr-lifecycle-v1.5.6
     tags:
       - 'v*'
 
