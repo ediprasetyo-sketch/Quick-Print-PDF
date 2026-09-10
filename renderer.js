@@ -245,8 +245,18 @@ async function printPdf(){
   $('printBtn').disabled=true;$('printBtnTop').disabled=true;$('statusText').textContent=t('preparing');
   try{
     const result=await qzPrintPdf(payload);
+    if(currentFileMeta?.jobId && /^RP-[A-Za-z0-9_-]+$/.test(String(currentFileMeta.jobId))){
+      const sync=await window.revo.remoteQueueStatus(currentFileMeta.jobId,'printed',`Cetak berhasil dikirim ke printer ${selectedPrinter()}.`);
+      if(!sync?.ok) toast('Cetak berhasil; status QR menunggu sinkronisasi.',false);
+    }
     toast(result.message||t('printSuccess'));$('statusText').textContent=t('sent');
-  }catch(err){toast(t('printFailed')+(err?.message||String(err)),true);$('statusText').textContent=t('readyStatus')}
+  }catch(err){
+    if(currentFileMeta?.jobId && /^RP-[A-Za-z0-9_-]+$/.test(String(currentFileMeta.jobId))){
+      const sync=await window.revo.remoteQueueStatus(currentFileMeta.jobId,'error',`Cetak gagal: ${err?.message||String(err)}`);
+      if(!sync?.ok) console.warn('QR Queue error status pending:',sync?.error);
+    }
+    toast(t('printFailed')+(err?.message||String(err)),true);$('statusText').textContent=t('readyStatus')
+  }
   finally{$('printBtn').disabled=false;$('printBtnTop').disabled=false}
 }
 
@@ -275,3 +285,5 @@ applyLanguage('id');
 // enable "Remember this decision" once. QZ will then reconnect automatically.
 setTimeout(autoConnectQz, 250);
 });
+
+// QR_LIFECYCLE_V1_5_6_RENDERER

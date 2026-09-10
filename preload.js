@@ -164,6 +164,8 @@ contextBridge.exposeInMainWorld('revo', {
   remoteQueueSaveConfig: (config) => ipcRenderer.invoke('remote-queue-save-config', config),
   remoteQueueList: () => ipcRenderer.invoke('remote-queue-list'),
   remoteQueueDelete: (jobId) => ipcRenderer.invoke('remote-queue-delete', jobId),
+  // QR_LIFECYCLE_V1_5_6_PRELOAD
+  remoteQueueStatus: (jobId, status, message = '') => ipcRenderer.invoke('remote-queue-status', { jobId, status, message }),
   remoteQueueOpen: (jobId) => openRemoteJob(jobId),
   onQrPdfReceived: (callback) => { qrPdfCallbacks.add(callback); return () => qrPdfCallbacks.delete(callback); }
 });
