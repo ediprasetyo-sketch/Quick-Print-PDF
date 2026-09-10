@@ -1,0 +1,124 @@
+name: Build RevoPrint V28.51 Windows Installer
+
+on:
+  push:
+    branches:
+      - revoprint-v28-51-build
+      - main
+    paths:
+      - 'revoprint-v28-51/**'
+      - '.github/workflows/build-revoprint-v28-51.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows-installer:
+    runs-on: windows-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Restore RevoPrint V28.51 source payload
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $payloadDir = 'revoprint-v28-51\payload'
+          $sourceDir = 'revoprint-v28-51\src'
+          $zipPath = 'revoprint-v28-51\core.zip'
+
+          New-Item -ItemType Directory -Force $sourceDir | Out-Null
+          $parts = Get-ChildItem "$payloadDir\part*.b64" | Sort-Object Name
+          if ($parts.Count -ne 4) {
+            throw "Expected 4 payload parts, found $($parts.Count)."
+          }
+
+          $b64 = ($parts | ForEach-Object { (Get-Content $_.FullName -Raw).Trim() }) -join ''
+          [IO.File]::WriteAllBytes($zipPath, [Convert]::FromBase64String($b64))
+
+          $expectedSha = 'e642dda8d31e049a68e4a0f09748482f8e845ca79136f8a48949bea83f885c17'
+          $actualSha = (Get-FileHash $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          Write-Host "Payload SHA-256: $actualSha"
+          if ($actualSha -ne $expectedSha) {
+            throw "Payload checksum mismatch. Expected $expectedSha, got $actualSha"
+          }
+
+          Expand-Archive -Force $zipPath $sourceDir
+          Copy-Item 'build\icon.ico' "$sourceDir\RevoPrint.ico" -Force
+
+          $required = @(
+            "$sourceDir\main.py",
+            "$sourceDir\requirements.txt",
+            "$sourceDir\RevoPrint.spec",
+            "$sourceDir\RevoPrint_V28_51.iss",
+            "$sourceDir\LOGO.png",
+            "$sourceDir\RevoPrint.ico"
+          )
+          foreach ($file in $required) {
+            if (!(Test-Path $file)) { throw "Required file missing: $file" }
+          }
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: revoprint-v28-51/src/requirements.txt
+
+      - name: Install Python dependencies
+        working-directory: revoprint-v28-51/src
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m py_compile main.py
+
+      - name: Build RevoPrint application
+        working-directory: revoprint-v28-51/src
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m PyInstaller --noconfirm --clean RevoPrint.spec
+          if (!(Test-Path 'dist\RevoPrint\RevoPrint.exe')) {
+            throw 'PyInstaller output RevoPrint.exe was not created.'
+          }
+          Get-Item 'dist\RevoPrint\RevoPrint.exe' | Format-List Name,Length,LastWriteTime
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $iscc = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
+          if (!(Test-Path $iscc)) {
+            choco install innosetup -y --no-progress
+          }
+          if (!(Test-Path $iscc)) {
+            throw 'Inno Setup compiler ISCC.exe was not found.'
+          }
+
+      - name: Build Windows installer EXE
+        working-directory: revoprint-v28-51/src
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $iscc = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
+          & $iscc 'RevoPrint_V28_51.iss'
+          $installer = 'installer_output\RevoPrint_V28_51_Setup.exe'
+          if (!(Test-Path $installer)) {
+            throw 'Final installer EXE was not created.'
+          }
+          $hash = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+          Write-Host "Installer SHA-256: $hash"
+          Get-Item $installer | Format-List Name,Length,LastWriteTime
+
+      - name: Upload RevoPrint V28.51 installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: RevoPrint_V28_51_Windows_Installer
+          path: revoprint-v28-51/src/installer_output/RevoPrint_V28_51_Setup.exe
+          if-no-files-found: error
+          retention-days: 30
